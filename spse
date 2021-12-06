@@ -1,0 +1,337 @@
+#!/usr/bin/env ruby
+
+require 'logger'
+require 'mechanize'
+require 'csv'
+require 'yaml'
+
+class SPSE
+
+  Student = Struct.new(:id, :name, :scores, :cviceni_create_url, :teorie_create_url)
+  Score   = Struct.new(:scoreId, :ct, :description, :value, :weight, :employee, :date, :update_url)
+
+  attr_accessor :dry
+
+  def initialize
+    @m = Mechanize.new
+    @m.user_agent_alias = 'Linux Firefox'
+    @dry = true
+  end
+
+  def debug
+    @m.log = Logger.new($stderr)
+    require 'irb'
+    binding.irb
+  end
+
+  def login(user, pass)
+    $stderr.puts "login..."
+    @page = @m.get('https://www.spsejecna.cz') unless @page and @page.link_with(text: 'Pro zaměstnance')
+    link = @page.link_with(text: 'Pro zaměstnance') or raise "no Pro zamestnance link found, logged in already?"
+    @page = @m.click link
+    form = @page.forms.first or raise 'no login form found'
+    form.user = user
+    form.pass = pass
+    begin
+      @page = @m.submit(form, form.buttons.first)
+    rescue Mechanize::ResponseCodeError
+      # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+    end
+    sleep 2
+    @page = @m.get('https://www.spsejecna.cz')
+    @page.link_with(text: 'Třídy') ? true : false
+  end
+
+  # calls the block for each Student parsed
+  def with_class_and_subject(trida, predmet, &block)
+
+    $stderr.puts "loading #{trida} page..."
+    @page = @m.get('https://www.spsejecna.cz') unless @page and @page.link_with(text: 'Třídy')
+    link = @page.link_with(text: 'Třídy') or raise "no Třídy link found, not logged in?"
+    page = @m.click link
+
+    link = page.link_with(text: /#{trida} \(/i) or raise "no link for '#{trida}'"
+    page = @m.click link
+
+    $stderr.puts "loading #{predmet} page..."
+    link = page.link_with(text: /Známky #{predmet}/i) or raise "no link for 'Známky #{predmet}'"
+    page = @m.click link
+
+    $stderr.puts
+
+    # process the <table>
+    page.search('table[class=score]//tr').each do |tr|
+
+      # process <th>
+
+      id   = tr.at_css('th')['id']
+      name = tr.at_css('th>a').text
+
+      # process the first <td>:
+      # there is a sequence of
+      #  <strong><a><a><a><a><a>...<span><strong><a><a><a><a><a>...<span>
+      # the first strong is Cviceni, the last is Teorie, links in between are scores
+      # and the span is "+" (used to detailed creation of a score)
+
+      spans = tr.css("span[class='score scores']")
+      raise "expected 2 score scores spans" unless spans.length==2
+      vice = lambda do |span| # last link is "Více..." -> will be used to set scores
+        links = span.css('a')
+        raise "expected 7 links in score scores" unless links.length==7
+        links.last['href']
+      end
+      cviceni_create_url = vice.call(spans[0])
+      teorie_create_url  = vice.call(spans[1])
+
+      ct = nil
+      scores = []
+      tr.at_css('td:first').children.each do |child|
+
+        if child.name == 'strong'
+
+          ct = case child.text
+            when /Cvičení:/
+              'cviceni'
+            when /Teorie:/
+              'teorie'
+            else
+              raise "can't find cviceni/teorie"
+          end
+
+        elsif child.name == 'a' && child['title']
+
+          child['title'] =~ /^(.+?)\s+\((\d+.\d+.\d+),\s+[^\)]+\)$/
+          description = $1
+          date  = $2
+          update_url = child['href']
+
+          update_url =~ /scoreId=(\d+)/
+          scoreId = $1
+          raise "no scoreId" if scoreId.to_s.empty?
+
+          raise "no 'score' in class" if child['class'] !~ /score/
+          weight = ( child['class'] =~ /scoreSmall/ ) ? 'small' : 'big'
+
+          value = child.at_css('span[class=value]').text
+          employee = child.at_css('span[class=employee]').text
+
+          scores << Score.new(scoreId, ct, description, value, weight, employee, date, update_url)
+
+        end
+
+      end
+
+      block.call Student.new(id, name, scores, cviceni_create_url, teorie_create_url)
+
+    end
+
+    nil
+  end
+
+  # flattenize array (for CSV)
+  def get_list(trida, predmet)
+    list = []
+    with_class_and_subject(trida, predmet) do |student|
+      if student.scores.empty?
+        list << [trida.upcase, predmet.upcase, student.id, student.name]
+      else
+        student.scores.each do |score|
+          list << [ trida.upcase, predmet.upcase, student.id, student.name, score.scoreId, score.ct, score.description, score.value, score.weight, score.employee, score.date]
+        end
+      end
+    end
+    list
+  end
+
+  def fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+    form.description = w_description
+
+    field = form.field_with(name: 'subjectPartId')
+    case w_ct
+      when 'cviceni'
+        field.option_with(text: 'Cvičení').click
+      when 'teorie'
+        field.option_with(text: 'Teorie').click
+      else
+        raise "error: '#{w_ct}' is not cviceni/teorie"
+    end
+
+    field = form.field_with(name: 'weight')
+    case w_weight
+      when 'small'
+        field.option_with(text: 'Malá známka').click
+      when 'big'
+        field.option_with(text: 'Velká známka').click
+      else
+        raise "error: '#{w_weight}' is not small/big"
+    end
+
+    field = form.field_with(name: 'value')
+    case w_value
+      when '1'
+        field.option_with(text: 'výborný').click
+      when '2'
+        field.option_with(text: 'chvalitebný').click
+      when '3'
+        field.option_with(text: 'dobrý').click
+      when '4'
+        field.option_with(text: 'dostatečný').click
+      when '5'
+        field.option_with(text: 'nedostatečný').click
+      when 'N'
+        field.option_with(text: 'nehodnocen').click
+      else
+        raise "error: '#{w_value}' is not 1/2/3/4/5/N"
+    end
+
+    form
+  end
+
+  def update_score(student, score, w_ct, w_description, w_value, w_weight)
+    ary = []
+    ary << "#{score.ct} -> #{w_ct}" if w_ct!=score.ct
+    ary << "#{score.description} -> #{w_description}" if w_description!=score.description
+    ary << "znamka #{score.value} -> #{w_value}" if w_value!=score.value
+    ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
+    unless ary.empty?
+      $stderr.puts "  - UPDATE: #{ary.join(', ')} (#{score.employee}, #{score.date})"
+      page = @m.get(score.update_url)
+      form = page.forms.first
+      fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+      unless @dry
+         page = form.submit
+         raise "update unsuccessful?" if page.title !~ /Známky/
+      end
+    end
+  end
+
+  def create_score(student, w_ct, w_description, w_value, w_weight)
+    $stderr.puts "  - CREATE: #{w_ct}, #{w_description}, #{w_value}, #{w_weight}"
+    url = case w_ct
+      when 'cviceni'
+        student.cviceni_create_url
+      when 'teorie'
+        student.teorie_create_url
+      else
+        raise "error: '#{w_ct}' is not cviceni/teorie"
+    end
+    page = @m.get(url)
+    form = page.forms.first
+    fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+    unless @dry
+      page = form.submit
+      raise "create unsuccessful?" if page.title !~ /Známky/
+    end
+  end
+
+  def delete_score(student, score)
+    $stderr.puts "  - DELETE: #{score.ct}, #{score.description}, #{score.value}, #{score.weight} (#{score.employee}, #{score.date})"
+    page = @m.get(score.update_url)
+    unless @dry
+      page = @m.click( page.link_with(text: 'Smazat') )
+      raise "delete unsuccessful?" if page.title !~ /Známky/
+    end
+  end
+
+  # apply flat array (from CSV)
+  def apply_list(list)
+
+    # strip all fields
+    list = list.map {|x| x.map {|y| y ? y.strip : y }}  
+
+    # check for duplicates
+    idx = {}
+    list.each do |x|
+      scoreId = x[4]
+      if idx.has_key?(scoreId)
+        raise "duplicate scoreId #{scoreId} found (don not set scoreId to create a new score)"
+      end
+      idx[scoreId] = true
+    end
+
+    # create a index of student trida/predmet/id
+    idx = {}
+    list.each do |trida, predmet, id, *x|
+      idx[trida.upcase] ||= {}
+      idx[trida.upcase][predmet.upcase] ||= {}
+      ( idx[trida.upcase][predmet.upcase][id] ||= [] ) << x
+    end
+
+    idx.each do |trida, predmety|
+      predmety.each do |predmet, scorelist_by_studentid|
+
+        with_class_and_subject(trida, predmet) do |student|
+          wanted = scorelist_by_studentid[student.id]
+          next unless wanted # student is defined in Trida but not found on the list
+
+          $stderr.puts "#{trida} #{predmet} #{student.name}"
+
+          to_delete = student.scores.clone
+          wanted.each do |item|
+            w_name, w_scoreId, w_ct, w_description, w_value, w_weight, w_employee, w_date = *item
+
+            found = student.scores.find do |score|
+              score.scoreId.to_s == w_scoreId.to_s
+            end
+
+            if found
+              to_delete.delete(found)  # found; won't be deleted further
+              update_score(student, found, w_ct, w_description, w_value, w_weight)
+            else
+              create_score(student, w_ct, w_description, w_value, w_weight)
+            end
+
+          end
+
+          # finally delete scores which have not been found on the list
+          to_delete.each do |score|
+            delete_score(student, score)
+          end
+
+        end
+      end
+
+    end
+
+    nil
+  end
+
+  def export_csv(trida, predmet)
+    puts get_list(trida,predmet).map(&:to_csv).join
+  end
+
+  def import_csv
+    apply_list(CSV.new(STDIN).read.uniq)
+  end
+
+end
+
+######
+
+case ARGV[0]
+  when 'debug'
+    SPSE.new.debug
+  when 'export'
+    trida   = ARGV[1]
+    predmet = ARGV[2]
+    raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
+    config = YAML::load_file('spse.cfg')
+    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
+    x = SPSE.new
+    x.login(config['user'], config['pass'])
+    x.export_csv(trida, predmet)
+  when 'import'
+    config = YAML::load_file('spse.cfg')
+    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
+    x = SPSE.new
+    x.dry = ARGV[1]!='doit'
+    x.login(config['user'], config['pass'])
+    x.import_csv
+  else
+    $stderr.puts "usage:"
+    $stderr.puts
+    $stderr.puts "./spse export TRIDA PREDMET >> data.csv"
+    $stderr.puts
+    $stderr.puts "./spse import [doit] < data.csv   (without the 'doit' it means dry-run)"
+    $stderr.puts
+end
