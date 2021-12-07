@@ -12,10 +12,21 @@ class SPSE
 
   attr_accessor :dry
 
-  def initialize
+  def initialize &block
     @m = Mechanize.new
     @m.user_agent_alias = 'Linux Firefox'
     @dry = true
+    load_session
+    block.call self
+    save_session
+  end
+
+  def load_session
+    @m.cookie_jar = YAML::load_file('spse.session') if File.exists?('spse.session')
+  end
+
+  def save_session
+    File.open('spse.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
   end
 
   def debug
@@ -25,21 +36,39 @@ class SPSE
   end
 
   def login(user, pass)
-    $stderr.puts "login..."
-    @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page and @page.link_with(text: 'Pro zaměstnance')
-    link = @page.link_with(text: 'Pro zaměstnance') or raise "no Pro zamestnance link found, logged in already?"
-    @page = rtr { @m.click link }
-    form = @page.forms.first or raise 'no login form found'
-    form.user = user
-    form.pass = pass
-    begin
-      @page = @m.submit(form, form.buttons.first)
-    rescue Mechanize::ResponseCodeError
-      # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+    @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page
+
+    logged_in = if link = @page.link_with(text: 'Předměty a tematické plány')
+      @page = rtr { @m.click link }
+      @page.link_with(text: 'Předměty a tematické plány') ? true : false  # still logged in?
+    else
+      false
     end
-    sleep 2
-    @page = rtr { @m.get('https://www.spsejecna.cz') }
-    @page.link_with(text: 'Třídy') ? true : false
+
+    if logged_in
+      $stderr.puts "still logged in"
+    else
+      $stderr.puts "login..."
+
+      link = @page.link_with(text: 'Pro zaměstnance') or raise "no Pro zamestnance link found"
+      @page = rtr { @m.click link }
+
+      form = @page.forms.first or raise 'no login form found'
+      form.user = user
+      form.pass = pass
+      begin
+        @page = @m.submit(form, form.buttons.first)
+      rescue Mechanize::ResponseCodeError
+        # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+      end
+      sleep 2
+      @page = rtr { @m.get('https://www.spsejecna.cz') }
+      raise "login unsuccessful" unless @page.link_with(text: 'Předměty a tematické plány')
+
+      save_session # force save now
+    end
+
+    nil
   end
 
   # calls the block for each Student parsed
@@ -347,39 +376,43 @@ end
 
 case ARGV[0]
   when 'debug'
-    SPSE.new.debug
+    SPSE.new {|x| x.debug }
   when 'export'
     trida   = ARGV[1]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
-    x = SPSE.new
-    x.login(config['user'], config['pass'])
-    puts x.export_csv(trida, predmet)
+    SPSE.new do |x|
+      x.login(config['user'], config['pass'])
+      puts x.export_csv(trida, predmet)
+    end
   when 'new'
     trida   = ARGV[1]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
-    x = SPSE.new
-    x.login(config['user'], config['pass'])
-    puts x.export_all_new_csv(trida, predmet)
+    SPSE.new do |x|
+      x.login(config['user'], config['pass'])
+      puts x.export_all_new_csv(trida, predmet)
+    end
   when 'import'
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
-    x = SPSE.new
-    x.dry = ARGV[1]!='doit'
-    x.login(config['user'], config['pass'])
-    x.import_csv($stdin, false)
+    SPSE.new do |x|
+      x.dry = ARGV[1]!='doit'
+      x.login(config['user'], config['pass'])
+      x.import_csv($stdin, false)
+    end
   when 'sync'
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
-    x = SPSE.new
-    x.dry = ARGV[1]!='doit'
-    x.login(config['user'], config['pass'])
-    x.import_csv($stdin, true)
+    SPSE.new do |x|
+      x.dry = ARGV[1]!='doit'
+      x.login(config['user'], config['pass'])
+      x.import_csv($stdin, true)
+    end
   else
     $stderr.puts "usage:"
     $stderr.puts
