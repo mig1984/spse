@@ -143,6 +143,14 @@ class SPSE
     list
   end
 
+  def get_list_all_new(trida, predmet)
+    list = []
+    with_class_and_subject(trida, predmet) do |student|
+      list << [trida.upcase, predmet.upcase, student.id, student.name, nil, 'cviceni/teorie', 'popis', '1-5/N', 'small/big']
+    end
+    list
+  end
+
   def fill_score_form!(form, w_ct, w_description, w_value, w_weight)
     form.description = w_description
 
@@ -237,7 +245,7 @@ class SPSE
   def apply_list(list, delete_missing)
 
     # delete empty rows
-    list.delete_if {|x| x.empty?}
+    list.delete_if {|ary| ary.join.empty? }
 
     # strip all fields
     list = list.map {|x| x.map {|y| y ? y.strip : y }}
@@ -307,6 +315,10 @@ class SPSE
     get_list(trida,predmet).map(&:to_csv).join
   end
 
+  def export_all_new_csv(trida, predmet)
+    get_list_all_new(trida,predmet).map(&:to_csv).join
+  end
+
   def import_csv(input, delete_missing)
     apply_list(CSV.new(input).read.uniq, delete_missing)
   end
@@ -345,6 +357,15 @@ case ARGV[0]
     x = SPSE.new
     x.login(config['user'], config['pass'])
     puts x.export_csv(trida, predmet)
+  when 'new'
+    trida   = ARGV[1]
+    predmet = ARGV[2]
+    raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
+    config = YAML::load_file('spse.cfg')
+    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
+    x = SPSE.new
+    x.login(config['user'], config['pass'])
+    puts x.export_all_new_csv(trida, predmet)
   when 'import'
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
@@ -363,6 +384,11 @@ case ARGV[0]
     $stderr.puts "usage:"
     $stderr.puts
     $stderr.puts "./spse export TRIDA PREDMET >> data.csv"
+    $stderr.puts
+    $stderr.puts "  ... or ..."
+    $stderr.puts
+    $stderr.puts "./spse new TRIDA PREDMET >> data.csv"
+    $stderr.puts
     $stderr.puts
     $stderr.puts "./spse import [doit] < data.csv   (without the 'doit' it means dry-run)"
     $stderr.puts
