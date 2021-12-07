@@ -26,9 +26,9 @@ class SPSE
 
   def login(user, pass)
     $stderr.puts "login..."
-    @page = @m.get('https://www.spsejecna.cz') unless @page and @page.link_with(text: 'Pro zaměstnance')
+    @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page and @page.link_with(text: 'Pro zaměstnance')
     link = @page.link_with(text: 'Pro zaměstnance') or raise "no Pro zamestnance link found, logged in already?"
-    @page = @m.click link
+    @page = rtr { @m.click link }
     form = @page.forms.first or raise 'no login form found'
     form.user = user
     form.pass = pass
@@ -38,7 +38,7 @@ class SPSE
       # submit redirects immediately to /, but gets 403 code; we have to wait a sec
     end
     sleep 2
-    @page = @m.get('https://www.spsejecna.cz')
+    @page = rtr { @m.get('https://www.spsejecna.cz') }
     @page.link_with(text: 'Třídy') ? true : false
   end
 
@@ -46,16 +46,16 @@ class SPSE
   def with_class_and_subject(trida, predmet, &block)
 
     $stderr.puts "loading #{trida} page..."
-    @page = @m.get('https://www.spsejecna.cz') unless @page and @page.link_with(text: 'Třídy')
+    @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page and @page.link_with(text: 'Třídy')
     link = @page.link_with(text: 'Třídy') or raise "no Třídy link found, not logged in?"
-    page = @m.click link
+    page = rtr { @m.click link }
 
     link = page.link_with(text: /#{trida} \(/i) or raise "no link for '#{trida}'"
-    page = @m.click link
+    page = rtr { @m.click link }
 
     $stderr.puts "loading #{predmet} page..."
     link = page.link_with(text: /Známky #{predmet}/i) or raise "no link for 'Známky #{predmet}'"
-    page = @m.click link
+    page = rtr { @m.click link }
 
     $stderr.puts
 
@@ -195,11 +195,11 @@ class SPSE
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
       $stderr.puts "  - UPDATE: #{ary.join(', ')} (#{score.employee}, #{score.date})"
-      page = @m.get(score.update_url)
+      page = rtr { @m.get(score.update_url) }
       form = page.forms.first
       fill_score_form!(form, w_ct, w_description, w_value, w_weight)
       unless @dry
-         page = form.submit
+         page = rtr { form.submit }
          raise "update unsuccessful?" if page.title !~ /Známky/
       end
     end
@@ -215,29 +215,32 @@ class SPSE
       else
         raise "error: '#{w_ct}' is not cviceni/teorie"
     end
-    page = @m.get(url)
+    page = rtr { @m.get(url) }
     form = page.forms.first
     fill_score_form!(form, w_ct, w_description, w_value, w_weight)
     unless @dry
-      page = form.submit
+      page = rtr { form.submit }
       raise "create unsuccessful?" if page.title !~ /Známky/
     end
   end
 
   def delete_score(student, score)
     $stderr.puts "  - DELETE: #{score.ct}, #{score.description}, #{score.value}, #{score.weight} (#{score.employee}, #{score.date})"
-    page = @m.get(score.update_url)
+    page = rtr { @m.get(score.update_url) }
     unless @dry
-      page = @m.click( page.link_with(text: 'Smazat') )
+      page = rtr { @m.click( page.link_with(text: 'Smazat') ) }
       raise "delete unsuccessful?" if page.title !~ /Známky/
     end
   end
 
   # apply flat array (from CSV)
-  def apply_list(list)
+  def apply_list(list, delete_missing)
+
+    # delete empty rows
+    list.delete_if {|x| x.empty?}
 
     # strip all fields
-    list = list.map {|x| x.map {|y| y ? y.strip : y }}  
+    list = list.map {|x| x.map {|y| y ? y.strip : y }}
 
     # check for duplicates
     idx = {}
@@ -268,6 +271,7 @@ class SPSE
           $stderr.puts "#{trida} #{predmet} #{student.name}"
 
           to_delete = student.scores.clone
+
           wanted.each do |item|
             w_name, w_scoreId, w_ct, w_description, w_value, w_weight, w_employee, w_date = *item
 
@@ -284,9 +288,11 @@ class SPSE
 
           end
 
-          # finally delete scores which have not been found on the list
-          to_delete.each do |score|
-            delete_score(student, score)
+          if delete_missing
+            # finally delete scores which have not been found on the list
+            to_delete.each do |score|
+              delete_score(student, score)
+            end
           end
 
         end
@@ -298,11 +304,29 @@ class SPSE
   end
 
   def export_csv(trida, predmet)
-    puts get_list(trida,predmet).map(&:to_csv).join
+    get_list(trida,predmet).map(&:to_csv).join
   end
 
-  def import_csv
-    apply_list(CSV.new(STDIN).read.uniq)
+  def import_csv(input, delete_missing)
+    apply_list(CSV.new(input).read.uniq, delete_missing)
+  end
+
+  private
+
+  def rtr max=2, &block
+    cnt = 0
+    begin
+      cnt += 1
+      block.call
+    rescue Mechanize::ResponseCodeError
+      if cnt<=max
+        $stderr.puts "error, retry in 20 secs..."
+        sleep 20
+        retry
+      else
+        raise "still error, giving up ;-("
+      end
+    end
   end
 
 end
@@ -320,19 +344,30 @@ case ARGV[0]
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     x = SPSE.new
     x.login(config['user'], config['pass'])
-    x.export_csv(trida, predmet)
+    puts x.export_csv(trida, predmet)
   when 'import'
     config = YAML::load_file('spse.cfg')
     raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     x = SPSE.new
     x.dry = ARGV[1]!='doit'
     x.login(config['user'], config['pass'])
-    x.import_csv
+    x.import_csv($stdin, false)
+  when 'sync'
+    config = YAML::load_file('spse.cfg')
+    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
+    x = SPSE.new
+    x.dry = ARGV[1]!='doit'
+    x.login(config['user'], config['pass'])
+    x.import_csv($stdin, true)
   else
     $stderr.puts "usage:"
     $stderr.puts
     $stderr.puts "./spse export TRIDA PREDMET >> data.csv"
     $stderr.puts
     $stderr.puts "./spse import [doit] < data.csv   (without the 'doit' it means dry-run)"
+    $stderr.puts
+    $stderr.puts "  ... or ..."
+    $stderr.puts
+    $stderr.puts "./spse sync [doit] < data.csv   (without the 'doit' it means dry-run; import + delete scores missing in the csv)"
     $stderr.puts
 end
