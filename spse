@@ -248,7 +248,7 @@ class SPSE
     list.delete_if {|ary| ary.join.empty? }
 
     # strip all fields
-    list = list.map {|x| x.map {|y| y ? y.strip : y }}
+    list.map! {|x| x.map {|y| y ? y.strip : y }}
 
     # check for duplicates
     idx = {}
