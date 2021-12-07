@@ -243,6 +243,7 @@ class SPSE
     idx = {}
     list.each do |x|
       scoreId = x[4]
+      next if ! scoreId
       if idx.has_key?(scoreId)
         raise "duplicate scoreId #{scoreId} found (don not set scoreId to create a new score)"
       end
