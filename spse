@@ -48,10 +48,12 @@ class SPSE
     if logged_in
       $stderr.puts "still logged in"
     else
-      $stderr.puts "login..."
+      $stderr.puts "login... "
 
-      link = @page.link_with(text: 'Pro zaměstnance') or raise "no Pro zamestnance link found"
-      @page = rtr { @m.click link }
+      # should see the proper form
+      if link = @page.link_with(text: 'Pro zaměstnance')
+        @page = rtr { @m.click link }
+      end
 
       form = @page.forms.first or raise 'no login form found'
       form.user = user
