@@ -275,9 +275,6 @@ class SPSE
   # apply flat array (from CSV)
   def apply_list(list, delete_missing)
 
-    # delete empty rows
-    list.delete_if {|ary| ary.join.empty? }
-
     # strip all fields
     list.map! {|x| x.map {|y| y ? y.strip : y }}
 
@@ -351,6 +348,8 @@ class SPSE
   end
 
   def import_csv(input, delete_missing)
+    input.gsub!(/^\s*#.*$/, '') # strip comments
+    input.gsub!(/^\s*?\n/, '')  # remove empty lines
     apply_list(CSV.new(input).read.uniq, delete_missing)
   end
 
@@ -405,7 +404,7 @@ case ARGV[0]
     SPSE.new do |x|
       x.dry = ARGV[1]!='doit'
       x.login(config['user'], config['pass'])
-      x.import_csv($stdin, false)
+      x.import_csv($stdin.read, false)
     end
   when 'sync'
     config = YAML::load_file('spse.cfg')
@@ -413,7 +412,7 @@ case ARGV[0]
     SPSE.new do |x|
       x.dry = ARGV[1]!='doit'
       x.login(config['user'], config['pass'])
-      x.import_csv($stdin, true)
+      x.import_csv($stdin.read, true)
     end
   else
     $stderr.puts "usage:"
