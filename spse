@@ -387,6 +387,11 @@ end
 
 ######
 
+# create/load and check config
+File.open('spse.cfg','w+') {|f| f.write({user:'', pass: ''}.to_yaml) } unless File.exists?('spse.cfg')
+config = YAML::load_file('spse.cfg')
+raise "no user/pass in spse.cfg" if config['user'].to_s.empty? or config['pass'].to_s.empty?
+
 case ARGV[0]
   when 'debug'
     SPSE.new {|x| x.debug }
@@ -394,8 +399,6 @@ case ARGV[0]
     trida   = ARGV[1]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
-    config = YAML::load_file('spse.cfg')
-    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     SPSE.new do |x|
       x.login(config['user'], config['pass'])
       puts x.export_csv(trida, predmet)
@@ -404,23 +407,17 @@ case ARGV[0]
     trida   = ARGV[1]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
-    config = YAML::load_file('spse.cfg')
-    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     SPSE.new do |x|
       x.login(config['user'], config['pass'])
       puts x.export_all_new_csv(trida, predmet)
     end
   when 'import'
-    config = YAML::load_file('spse.cfg')
-    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     SPSE.new do |x|
       x.dry = ARGV[1]!='doit'
       x.login(config['user'], config['pass'])
       x.import_csv($stdin.read, false)
     end
   when 'sync'
-    config = YAML::load_file('spse.cfg')
-    raise "no user/pass in spse.cfg" unless config['user'] and config['pass']
     SPSE.new do |x|
       x.dry = ARGV[1]!='doit'
       x.login(config['user'], config['pass'])
