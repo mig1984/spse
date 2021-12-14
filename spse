@@ -105,14 +105,20 @@ class SPSE
       # and the span is "+" (used to detailed creation of a score)
 
       spans = tr.css("span[class='score scores']")
-      raise "expected 2 score scores spans" unless spans.length==2
-      vice = lambda do |span| # last link is "Více..." -> will be used to set scores
-        links = span.css('a')
-        raise "expected 7 links in score scores" unless links.length==7
-        links.last['href']
+
+      # (probably) fired students have no '+' to set scores
+      if spans.length==2
+        vice = lambda do |span| # last link is "Více..." -> will be used to set scores
+          links = span.css('a')
+          raise "expected 7 links in score scores" unless links.length==7
+          links.last['href']
+        end
+        cviceni_create_url = vice.call(spans[0])
+        teorie_create_url  = vice.call(spans[1])
+      else
+        cviceni_create_url = nil
+        teorie_create_url  = nil
       end
-      cviceni_create_url = vice.call(spans[0])
-      teorie_create_url  = vice.call(spans[1])
 
       ct = nil
       scores = []
@@ -234,6 +240,9 @@ class SPSE
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
       $stderr.puts "  - UPDATE: #{ary.join(', ')} (#{score.employee}, #{score.date})"
+
+      raise "can't update score for #{student.name} (no update_url found)" unless score.update_url
+
       page = rtr { @m.get(score.update_url) }
       form = page.forms.first
       fill_score_form!(form, w_ct, w_description, w_value, w_weight)
@@ -246,6 +255,7 @@ class SPSE
 
   def create_score(student, w_ct, w_description, w_value, w_weight)
     $stderr.puts "  - CREATE: #{w_ct}, #{w_description}, #{w_value}, #{w_weight}"
+
     url = case w_ct
       when 'cviceni'
         student.cviceni_create_url
@@ -254,6 +264,8 @@ class SPSE
       else
         raise "error: '#{w_ct}' is not cviceni/teorie"
     end
+    raise "ERROR: can't create score for #{student.name} (no create url found)" unless url
+
     page = rtr { @m.get(url) }
     form = page.forms.first
     fill_score_form!(form, w_ct, w_description, w_value, w_weight)
