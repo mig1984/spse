@@ -192,27 +192,27 @@ class SPSE
     form.description = w_description
 
     field = form.field_with(name: 'subjectPartId')
-    case w_ct
-      when 'cviceni'
+    case w_ct.upcase
+      when 'CVICENI'
         field.option_with(text: 'Cvičení').click
-      when 'teorie'
+      when 'TEORIE'
         field.option_with(text: 'Teorie').click
       else
         raise "error: '#{w_ct}' is not cviceni/teorie"
     end
 
     field = form.field_with(name: 'weight')
-    case w_weight
-      when 'small'
+    case w_weight.upcase
+      when 'SMALL'
         field.option_with(text: 'Malá známka').click
-      when 'big'
+      when 'BIG'
         field.option_with(text: 'Velká známka').click
       else
         raise "error: '#{w_weight}' is not small/big"
     end
 
     field = form.field_with(name: 'value')
-    case w_value
+    case w_value.upcase
       when '1'
         field.option_with(text: 'výborný').click
       when '2'
