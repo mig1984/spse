@@ -285,7 +285,7 @@ class SPSE
   end
 
   # apply flat array (from CSV)
-  def apply_list(list, delete_missing)
+  def apply_list(list)
 
     # strip all fields
     list.map! {|x| x.map {|y| y ? y.strip : y }}
@@ -318,29 +318,23 @@ class SPSE
 
           $stderr.puts "#{trida} #{predmet} #{student.name}"
 
-          to_delete = student.scores.clone
-
           wanted.each do |item|
             w_name, w_scoreId, w_ct, w_description, w_value, w_weight, w_employee, w_date = *item
 
-            found = student.scores.find do |score|
+            found_score = student.scores.find do |score|
               score.scoreId.to_s == w_scoreId.to_s
             end
 
-            if found
-              to_delete.delete(found)  # found; won't be deleted further
-              update_score(student, found, w_ct, w_description, w_value, w_weight)
+            if found_score
+              if w_value.to_s.strip.empty?
+                delete_score(student, found_score)
+              else
+                update_score(student, found_score, w_ct, w_description, w_value, w_weight)
+              end
             else
               create_score(student, w_ct, w_description, w_value, w_weight)
             end
 
-          end
-
-          if delete_missing
-            # finally delete scores which have not been found on the list
-            to_delete.each do |score|
-              delete_score(student, score)
-            end
           end
 
         end
@@ -359,10 +353,10 @@ class SPSE
     get_list_all_new(trida,predmet).map(&:to_csv).join
   end
 
-  def import_csv(input, delete_missing)
+  def import_csv(input)
     input.gsub!(/^\s*#.*$/, '') # strip comments
     input.gsub!(/^[\s,]*?\n/, '')  # remove empty lines
-    apply_list(CSV.new(input).read.uniq, delete_missing)
+    apply_list(CSV.new(input).read.uniq)
   end
 
   private
@@ -415,13 +409,7 @@ case ARGV[0]
     SPSE.new do |x|
       x.dry = ARGV[1]!='doit'
       x.login(config['user'], config['pass'])
-      x.import_csv($stdin.read, false)
-    end
-  when 'sync'
-    SPSE.new do |x|
-      x.dry = ARGV[1]!='doit'
-      x.login(config['user'], config['pass'])
-      x.import_csv($stdin.read, true)
+      x.import_csv($stdin.read)
     end
   else
     $stderr.puts "usage:"
@@ -434,9 +422,6 @@ case ARGV[0]
     $stderr.puts
     $stderr.puts
     $stderr.puts "./spse import [doit] < data.csv   (without the 'doit' it means dry-run)"
-    $stderr.puts
-    $stderr.puts "  ... or ..."
-    $stderr.puts
-    $stderr.puts "./spse sync [doit] < data.csv   (without the 'doit' it means dry-run; import + delete scores missing in the csv)"
+    $stderr.puts "                                  if score value is missing, the score will be DELETED"
     $stderr.puts
 end
