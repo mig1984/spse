@@ -361,7 +361,7 @@ class SPSE
 
   def import_csv(input, delete_missing)
     input.gsub!(/^\s*#.*$/, '') # strip comments
-    input.gsub!(/^\s*?\n/, '')  # remove empty lines
+    input.gsub!(/^[\s,]*?\n/, '')  # remove empty lines
     apply_list(CSV.new(input).read.uniq, delete_missing)
   end
 
