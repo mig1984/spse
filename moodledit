@@ -10,10 +10,8 @@ require 'csv'
 name = ARGV[0] or raise "no 'name' specified"
 
 # load spse csv from STDIN (created by 'new')
-csv = CSV.new(STDIN.read).read
-
-# create index by full name
 idx = {}
+csv = CSV.new(STDIN.read).read
 csv.each {|row| idx[row[3]] = row }   # 3 = "Prijmeni Jmeno"
 
 # load exported ods from moodle
@@ -26,9 +24,7 @@ row1[2] == 'Příjmení'      or raise "expected Prijmeni"
 # load config
 config = YAML::load_file("#{name}.yml")
 
-
-# build output by intersection of ods and csv
-
+# build output as intersection of ods and csv
 out = []
 
 config['tasks'].each do |task, defs|
