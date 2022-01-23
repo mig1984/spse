@@ -2,7 +2,7 @@
 
 ## install
 
-1. apt install ruby [rubygems]
+1. apt install ruby
 2. gem install mechanize
 3. gem install roo --version 2.7.1
 4. edit spse.cfg
@@ -19,8 +19,8 @@ spse import [fuzzy] [doit] < data.csv
 
 Bez parametru 'doit' to nic opravdu neudela.
 
-Bez parametru 'fuzzy' dojde k aktualizaci jiz existujici znamky pouze na zaklade stejneho scoreId.
-S parametrem 'fuzzy' dojde k aktualizaci znamky bud na zaklade shodneho scoreId nebo shodneho popisu.
+Bez parametru 'fuzzy' dojde k aktualizaci jiz existujici znamky pouze na zaklade stejneho scoreId.  
+S parametrem 'fuzzy' dojde k aktualizaci znamky bud na zaklade shodneho scoreId nebo shodneho popisu.  
 
 Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich hodnoty (1-5-N).
 
@@ -46,8 +46,8 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 
    napriklad je template:
 
-   C3B,PSS,novak,Novák Antonín,,cviceni/teorie,popis,1-5/N,small/big 
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni/teorie,popis,1-2-3-4-5-N,small/big 
+   C3B,PSS,novak,Novák Antonín,,cviceni/teorie,popis,1-5/N,small/big  
+   C3B,PSS,novotny2,Novotný Ondřej,,cviceni/teorie,popis,1-2-3-4-5-N,small/big  
    ...
 
    pak
@@ -58,8 +58,8 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 
    vygeneruje
 
-   C3B,PSS,novak,Novák Antonín,,cviceni,UTP Kabel,1,small 
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni,UTP Kabel,1,small 
+   C3B,PSS,novak,Novák Antonín,,cviceni,UTP Kabel,1,small  
+   C3B,PSS,novotny2,Novotný Ondřej,,cviceni,UTP Kabel,1,small  
    ...
 
 5. nakonec se takto pripravena data importuji s parametrem 'fuzzy'; to proto, ze na portale uz muze existovat znamka se stejnym popisem
