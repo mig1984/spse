@@ -53,7 +53,7 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
    pak
 
    ```bash
-   $ cat pss-c3a-new.csv | ./moodle export-znamek-c3
+   $ cat pss-c3a-new.csv | ./moodledit export-znamek-c3
    ```
 
    vygeneruje
@@ -69,12 +69,12 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 Cely proces pro vsechny c3 tridy muze vypadat takto:
 
   ```bash
-  $ cat pss-c3*-new.csv | ./moodle export-znamek-c3 | ./spse import fuzzy doit
+  $ cat pss-c3*-new.csv | ./moodledit export-znamek-c3 | ./spse import fuzzy doit
   ```
 
 Nebo jen dve tridy
 
   ```bash
-  $ cat pss-c3a-new.csv pss-c3b-new.csv | ./moodle export-znamek-c3 | ./spse import fuzzy doit
+  $ cat pss-c3a-new.csv pss-c3b-new.csv | ./moodledit export-znamek-c3 | ./spse import fuzzy doit
   ```
 
