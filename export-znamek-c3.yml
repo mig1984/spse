@@ -1,0 +1,15 @@
+type: cviceni
+
+# z 'max' se vypocitava procento a z neho znamka
+tasks:
+  "Úkol: PSS 1. úloha síťařina IPv4":
+    weight: "big"
+    max: 10
+
+  "Úkol: PSS 1. úloha síťařina IPv6":
+    weight: "big"
+    max: 100
+
+  "Úkol: IPv6 konektivita":
+    weight: "big"
+    max: 100

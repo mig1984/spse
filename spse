@@ -189,6 +189,7 @@ class SPSE
   end
 
   def fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+
     form.description = w_description
 
     field = form.field_with(name: 'subjectPartId')
@@ -245,6 +246,7 @@ class SPSE
 
       page = rtr { @m.get(score.update_url) }
       form = page.forms.first
+      raise "no score form found, can't update" unless form
       fill_score_form!(form, w_ct, w_description, w_value, w_weight)
       unless @dry
          page = rtr { form.submit }
@@ -285,7 +287,7 @@ class SPSE
   end
 
   # apply flat array (from CSV)
-  def apply_list(list)
+  def apply_list(list, fuzzy)
 
     # strip all fields
     list.map! {|x| x.map {|y| y ? y.strip : y }}
@@ -321,8 +323,15 @@ class SPSE
           wanted.each do |item|
             w_name, w_scoreId, w_ct, w_description, w_value, w_weight, w_employee, w_date = *item
 
-            found_score = student.scores.find do |score|
-              score.scoreId.to_s == w_scoreId.to_s
+            found_score = if fuzzy
+              student.scores.find do |score|
+                score.scoreId.to_s == w_scoreId.to_s ||
+                score.description.to_s.upcase == w_description.to_s.upcase
+              end
+            else
+              student.scores.find do |score|
+                score.scoreId.to_s == w_scoreId.to_s
+              end
             end
 
             if found_score
@@ -353,10 +362,10 @@ class SPSE
     get_list_all_new(trida,predmet).map(&:to_csv).join
   end
 
-  def import_csv(input)
+  def import_csv(input, fuzzy)
     input.gsub!(/^\s*#.*$/, '') # strip comments
     input.gsub!(/^[\s,]*?\n/, '')  # remove empty lines
-    apply_list(CSV.new(input).read.uniq)
+    apply_list(CSV.new(input).read.uniq, fuzzy)
   end
 
   private
@@ -407,9 +416,10 @@ case ARGV[0]
     end
   when 'import'
     SPSE.new do |x|
-      x.dry = ARGV[1]!='doit'
+      fuzzy = ARGV[1]=='fuzzy'
+      x.dry = ARGV.last!='doit'
       x.login(config['user'], config['pass'])
-      x.import_csv($stdin.read)
+      x.import_csv($stdin.read, fuzzy)
     end
   else
     $stderr.puts "usage:"
@@ -421,7 +431,8 @@ case ARGV[0]
     $stderr.puts "./spse new TRIDA PREDMET >> data.csv"
     $stderr.puts
     $stderr.puts
-    $stderr.puts "./spse import [doit] < data.csv   (without the 'doit' it means dry-run)"
-    $stderr.puts "                                  if score value is missing, the score will be DELETED"
+    $stderr.puts "./spse import [fuzzy] [doit] < data.csv   without the 'doit' it means dry-run"
+    $stderr.puts "                                          if score value is missing, the score will be DELETED"
+    $stderr.puts "                                          'fuzzy' matches scoreId or same description"
     $stderr.puts
 end
