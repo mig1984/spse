@@ -1,13 +1,13 @@
 #!/usr/bin/env ruby
 
-# gem install roo --version 2.7.1
+# version 2.7.1 is necessary:
+#   gem install roo --version 2.7.1
 
 require 'roo'
 require 'yaml'
 require 'csv'
 
-name = ARGV[0]
-raise "no 'name' specified" unless name
+name = ARGV[0] or raise "no 'name' specified"
 
 # load spse csv (created by 'new')
 idx = {}
