@@ -9,9 +9,13 @@
 
 ## usage
 
+```bash
 spse export TRIDA PREDMET >> data.csv
+```
 
+```bash
 spse import [fuzzy] [doit] < data.csv
+```
 
 Bez parametru 'doit' to nic opravdu neudela.
 
@@ -24,9 +28,11 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 
 1. vytvor template
 
+  ```bash
   $ ./spse new c3a pss > pss-c3a-new.csv
   $ ./spse new c3b pss > pss-c3b-new.csv
   $ ./spse new c3c pss > pss-c3c-new.csv
+  ```
 
   jednotlive csv edituj a odstran zaky, ktere nemas (jejich znamky nelze editovat)
 
@@ -40,18 +46,20 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 
    napriklad je template:
 
-   C3B,PSS,novak,Novák Antonín,,cviceni/teorie,popis,1-5/N,small/big
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni/teorie,popis,1-2-3-4-5-N,small/big
+   C3B,PSS,novak,Novák Antonín,,cviceni/teorie,popis,1-5/N,small/big 
+   C3B,PSS,novotny2,Novotný Ondřej,,cviceni/teorie,popis,1-2-3-4-5-N,small/big 
    ...
 
    pak
 
+   ```bash
    $ cat pss-c3a-new.csv | ./moodle export-znamek-c3
+   ```
 
    vygeneruje
 
-   C3B,PSS,novak,Novák Antonín,,cviceni,UTP Kabel,1,small
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni,UTP Kabel,1,small
+   C3B,PSS,novak,Novák Antonín,,cviceni,UTP Kabel,1,small 
+   C3B,PSS,novotny2,Novotný Ondřej,,cviceni,UTP Kabel,1,small 
    ...
 
 5. nakonec se takto pripravena data importuji s parametrem 'fuzzy'; to proto, ze na portale uz muze existovat znamka se stejnym popisem
@@ -60,9 +68,13 @@ Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich h
 
 Cely proces pro vsechny c3 tridy muze vypadat takto:
 
+  ```bash
   $ cat pss-c3*-new.csv | ./moodle export-znamek-c3 | ./spse import fuzzy doit
+  ```
 
 Nebo jen dve tridy
 
+  ```bash
   $ cat pss-c3a-new.csv pss-c3b-new.csv | ./moodle export-znamek-c3 | ./spse import fuzzy doit
+  ```
 
