@@ -12,19 +12,20 @@ raise "no 'name' specified" unless name
 # load spse csv (created by 'new')
 idx = {}
 csv = CSV.new(STDIN.read).read
-csv.each {|row| i = idx[row[3]] = row }   # 3 = "Prijmeni Jmeno"
+csv.each {|row| idx[row[3]] = row }   # 3 = "Prijmeni Jmeno"
 
-# load ods exported from moodle
+# load exported ods from moodle
 ods = Roo::Spreadsheet.open("#{name}.ods")
 sheet = ods.sheet(0)
-row = sheet.row(1)
-row[0] == 'Křestní jméno' or raise "expected Krestni jmeno"
-row[2] == 'Příjmení' or raise "expected Prijmeni"
+row1 = sheet.row(1)
+row1[0] == 'Křestní jméno' or raise "expected Krestni jmeno"
+row1[2] == 'Příjmení'      or raise "expected Prijmeni"
 
-# load tasks
+# load config
 config = YAML::load_file("#{name}.yml")
 
 out = []
+
 config['tasks'].each do |task, defs|
 
   col_num = sheet.row(1).index {|x| x =~ /#{task}/i } or raise "no matching column for '#{task}' found in the exported ods"
