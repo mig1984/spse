@@ -1,6 +1,7 @@
 type: cviceni
 
 # z 'max' se vypocitava procento a z neho znamka
+
 tasks:
   "Úkol: PSS 1. úloha síťařina IPv4":
     weight: "big"
@@ -13,3 +14,17 @@ tasks:
   "Úkol: IPv6 konektivita":
     weight: "big"
     max: 100
+
+
+# ve skupine se znamka vypocita jako prumer znamek jednotlivych ukolu; N se pocita jako 5
+
+groups:
+  "Síťařina":
+    weight: big
+    tasks:
+      "Úkol: PSS 1. úloha síťařina IPv4":
+        max: 10
+      "Úkol: PSS 1. úloha síťařina IPv6":
+        max: 100
+      "Úkol: IPv6 konektivita":
+        max: 100

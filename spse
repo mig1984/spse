@@ -240,7 +240,7 @@ class SPSE
     ary << "znamka #{score.value} -> #{w_value}" if w_value!=score.value
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
-      $stderr.puts "  - UPDATE: #{ary.join(', ')} (#{score.employee}, #{score.date})"
+      $stderr.puts "  - UPDATE: #{w_description}: #{ary.join(', ')} (#{score.employee}, #{score.date})"
 
       raise "can't update score for #{student.name} (no update_url found)" unless score.update_url
 
