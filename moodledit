@@ -83,17 +83,15 @@ CONFIG['tasks'].each do |task, defs|
   end
 end
 
-CONFIG['groups'].each do |group_task, group_defs|
+CONFIG['groups'].each do |group_name, group_defs|
   scores = {}
   group_defs['tasks'].each { |task, defs| add_scores!(task, defs, scores, false) }
   scores.each do |full_name, score_sum|
-    avg_score = score_sum / group_defs['tasks'].length
-    raise "weird average score #{avg_score} for #{full_name}" if avg_score<1 || avg_score>5
     entry = INDEX[full_name].dup # ["C3A", "PSS", "virva", "Virva Filip", , "cviceni/teorie", "popis", "1-2-3-4-5-N", "small/big"]
     entry[4] = nil
     entry[5] = CONFIG['type']
-    entry[6] = group_task
-    entry[7] = avg_score
+    entry[6] = group_name
+    entry[7] = score_sum / group_defs['tasks'].length
     entry[8] = group_defs['weight'] || 'big'
     out << entry
   end
