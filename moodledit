@@ -9,29 +9,30 @@ require 'csv'
 
 name = ARGV[0] or raise "no 'name' specified"
 
+CONFIG = YAML::load_file("#{name}.yml")
+
 # load spse csv from STDIN (created by 'new')
-$idx = {}
+INDEX = {}
 csv = CSV.new(STDIN.read).read
-csv.each {|row| $idx[row[3]] = row }   # 3 = "Prijmeni Jmeno"
+csv.each {|row| INDEX[row[3]] = row }   # 3 = "Prijmeni Jmeno"
 
 # load exported ods from moodle
 ods = Roo::Spreadsheet.open("#{name}.ods")
-$sheet = ods.sheet(0)
-$sheet.row(1)[0] == 'Křestní jméno' or raise "expected Krestni jmeno"
-$sheet.row(1)[2] == 'Příjmení'      or raise "expected Prijmeni"
+SHEET = ods.sheet(0)
+SHEET.row(1)[0] == 'Křestní jméno' or raise "expected Krestni jmeno"
+SHEET.row(1)[2] == 'Příjmení'      or raise "expected Prijmeni"
 
-# load config
-$config = YAML::load_file("#{name}.yml")
 
+###########################################################
 
 def add_scores!(task, defs, scores, allow_n)
-  col_num = $sheet.row(1).index {|x| x =~ /#{task}/i } or raise "no matching column for '#{task}' found in the exported ods"
+  col_num = SHEET.row(1).index {|x| x =~ /#{task}/i } or raise "no matching column for '#{task}' found in the exported ods"
 
-  2.upto($sheet.last_row) do |row_num|
-    row = $sheet.row(row_num)
+  2.upto(SHEET.last_row) do |row_num|
+    row = SHEET.row(row_num)
 
     full_name = "#{row[2]} #{row[0]}"
-    next unless $idx.has_key?(full_name)
+    next unless INDEX.has_key?(full_name)
 
     score = if row[col_num] == '-'
       allow_n ? 'N' : 5
@@ -64,16 +65,17 @@ def add_scores!(task, defs, scores, allow_n)
   nil
 end
 
+###########################################################
 
 out = []
 
-$config['tasks'].each do |task, defs|
+CONFIG['tasks'].each do |task, defs|
   scores = {}
   add_scores!(task, defs, scores, true)
   scores.each do |full_name, score|
-    entry = $idx[full_name].dup # ["C3A", "PSS", "virva", "Virva Filip", , "cviceni/teorie", "popis", "1-2-3-4-5-N", "small/big"]
+    entry = INDEX[full_name].dup # ["C3A", "PSS", "virva", "Virva Filip", , "cviceni/teorie", "popis", "1-2-3-4-5-N", "small/big"]
     entry[4] = nil
-    entry[5] = $config['type']
+    entry[5] = CONFIG['type']
     entry[6] = task
     entry[7] = score
     entry[8] = defs['weight']
@@ -81,13 +83,13 @@ $config['tasks'].each do |task, defs|
   end
 end
 
-$config['groups'].each do |group_task, group_defs|
+CONFIG['groups'].each do |group_task, group_defs|
   scores = {}
   group_defs['tasks'].each { |task, defs| add_scores!(task, defs, scores, false) }
   scores.each do |full_name, score|
-    entry = $idx[full_name].dup # ["C3A", "PSS", "virva", "Virva Filip", , "cviceni/teorie", "popis", "1-2-3-4-5-N", "small/big"]
+    entry = INDEX[full_name].dup # ["C3A", "PSS", "virva", "Virva Filip", , "cviceni/teorie", "popis", "1-2-3-4-5-N", "small/big"]
     entry[4] = nil
-    entry[5] = $config['type']
+    entry[5] = CONFIG['type']
     entry[6] = group_task
     entry[7] = score / group_defs['tasks'].length
     entry[8] = group_defs['weight']
