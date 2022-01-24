@@ -236,7 +236,7 @@ class SPSE
   def update_score(student, score, w_ct, w_description, w_value, w_weight)
     ary = []
     ary << "#{score.ct} -> #{w_ct}" if w_ct!=score.ct
-    ary << "#{score.description} -> #{w_description}" if w_description!=score.description
+    ary << "-> #{w_description}" if w_description!=score.description
     ary << "znamka #{score.value} -> #{w_value}" if w_value!=score.value
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
