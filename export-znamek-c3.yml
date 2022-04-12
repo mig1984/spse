@@ -26,7 +26,7 @@ tasks:
   "Název známky na portále":
     weight: "big"
     max: 100
-    name: "Název úkolu v moodle"
+    moodle_name: "Název úkolu v moodle"
 
 
 # ve skupine se znamka vypocita jako prumer znamek jednotlivych ukolu; N se pocita jako 5

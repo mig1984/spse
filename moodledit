@@ -63,10 +63,11 @@ def add_scores!(task, defs, scores)
     h[:scores] << score
 
     if h[:scores].length==1
-      # keep 'N' if possible
-      h[:score] = score
+      # keep 'N' if there is just one score
+      h[:score] = h[:scores].first
     else
-      # need to convert 'N' to 5 first to be able to calculate an average
+      # convert 'N' to 5 before calculating an average
+      # the average is re-calculates for each score
       sum = h[:scores].sum { |sc| sc=='N' ? 5 : sc }
       h[:score] = sum / h[:scores].length
     end
