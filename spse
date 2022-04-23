@@ -233,13 +233,19 @@ class SPSE
     form
   end
 
-  def update_score(student, score, w_ct, w_description, w_value, w_weight)
+  def update_score(student, score, w_ct, w_description, w_value, w_weight, w_employee)
     ary = []
     ary << "#{score.ct} -> #{w_ct}" if w_ct!=score.ct
     ary << "-> #{w_description}" if w_description!=score.description
     ary << "znamka #{score.value} -> #{w_value}" if w_value!=score.value
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
+
+      if $CONFIG['user_id'] && w_employee!=$CONFIG['user_id']
+        $stderr.puts "  !!! SKIPPING UPDATE: #{w_description}: #{ary.join(', ')} (#{score.employee}, #{score.date})"
+        return
+      end
+      
       $stderr.puts "  - UPDATE: #{w_description}: #{ary.join(', ')} (#{score.employee}, #{score.date})"
 
       raise "can't update score for #{student.name} (no update_url found)" unless score.update_url
@@ -256,7 +262,6 @@ class SPSE
   end
 
   def create_score(student, w_ct, w_description, w_value, w_weight)
-    $stderr.puts "  - CREATE: #{w_ct}, #{w_description}, #{w_value}, #{w_weight}"
 
     url = case w_ct
       when 'cviceni'
@@ -277,8 +282,15 @@ class SPSE
     end
   end
 
-  def delete_score(student, score)
+  def delete_score(student, score, w_employee)
+
+    if $CONFIG['user_id'] && w_employee!=$CONFIG['user_id']
+      $stderr.puts "  !!! SKIPPING DELETE: #{score.ct}, #{score.description}, #{score.value}, #{score.weight} (#{score.employee}, #{score.date})"
+      return
+    end
+
     $stderr.puts "  - DELETE: #{score.ct}, #{score.description}, #{score.value}, #{score.weight} (#{score.employee}, #{score.date})"
+
     page = rtr { @m.get(score.update_url) }
     unless @dry
       page = rtr { @m.click( page.link_with(text: 'Smazat') ) }
@@ -336,9 +348,9 @@ class SPSE
 
             if found_score
               if w_value.to_s.strip.empty?
-                delete_score(student, found_score)
+                delete_score(student, found_score, w_employee)
               else
-                update_score(student, found_score, w_ct, w_description, w_value, w_weight)
+                update_score(student, found_score, w_ct, w_description, w_value, w_weight, w_employee)
               end
             else
               create_score(student, w_ct, w_description, w_value, w_weight)
@@ -392,8 +404,8 @@ end
 
 # create/load and check config
 File.open('spse.cfg','w+') {|f| f.write({user:'', pass: ''}.to_yaml) } unless File.exists?('spse.cfg')
-config = YAML::load_file('spse.cfg')
-raise "no user/pass in spse.cfg" if config['user'].to_s.empty? or config['pass'].to_s.empty?
+$CONFIG = YAML::load_file('spse.cfg')
+raise "no user/pass in spse.cfg" if $CONFIG['user'].to_s.empty? or $CONFIG['pass'].to_s.empty?
 
 case ARGV[0]
   when 'debug'
@@ -403,7 +415,7 @@ case ARGV[0]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     SPSE.new do |x|
-      x.login(config['user'], config['pass'])
+      x.login($CONFIG['user'], $CONFIG['pass'])
       puts x.export_csv(trida, predmet)
     end
   when 'new'
@@ -411,14 +423,14 @@ case ARGV[0]
     predmet = ARGV[2]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     SPSE.new do |x|
-      x.login(config['user'], config['pass'])
+      x.login($CONFIG['user'], $CONFIG['pass'])
       puts x.export_all_new_csv(trida, predmet)
     end
   when 'import'
     SPSE.new do |x|
       fuzzy = ARGV[1]=='fuzzy'
       x.dry = ARGV.last!='doit'
-      x.login(config['user'], config['pass'])
+      x.login($CONFIG['user'], $CONFIG['pass'])
       x.import_csv($stdin.read, fuzzy)
     end
   else
