@@ -67,14 +67,14 @@ spse import fuzzy doit < data.csv
 Skript "moodle" exportuje známky z moodle, a to tak, že vygeneruje soubor CSV vhodný pro následný import skriptem "spse".
 
 ```bash
-./moodle export ID > data.csv
+./moodle export pss-c3b.yml > data.csv
 ./spse import fuzzy doit < data.csv
 ```
 
 nebo totéž pomocí roury:
 
 ```bash
-./moodle export ID | ./spse import fuzzy doit
+./moodle export pss-c3b.yml | ./spse import fuzzy doit
 ```
 
 ## index žáků
