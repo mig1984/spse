@@ -1,80 +1,126 @@
 # spse
 
-## install
+Skrip "spse" umí exportovat a importovat známky z portálu do/z CSV souboru. Import znamená, že porovná aktuální stav na portále s tím co je v CSV a provede pouze změny.
 
-1. apt install ruby
-2. gem install mechanize
-3. gem install roo --version 2.7.1
-4. edit spse.cfg
+## instalace
 
-## usage
+1. nainstaluj ruby (na debianu "apt install ruby")
+2. nainstaluj gem mechanize ("gem install mechanize")
+4. edituj spse.cfg a uprav své přihlašovací jméno, heslo a zkratku
+
+## export/import známek z/na portál
+
+Export známek předmětu PSS C3a do souboru data.csv:
 
 ```bash
-spse export TRIDA PREDMET >> data.csv
+./spse export C3a PSS > data.csv
 ```
+
+Lze též exportovat více tříd i předmětů do jediného souboru a pak ho importovat najednou:
 
 ```bash
-spse import [fuzzy] [doit] < data.csv
+./spse export C3a PSS > data.csv
+./spse export C3b PSS >> data.csv
+./spse export C3a WA  >> data.csv
+./spse export C3b WA  >> data.csv
 ```
 
-Bez parametru 'doit' to nic opravdu neudela.
+Nyní je možno CSV soubor editovat:
+  - Pokud se změní řádky, které mají "scoreId" (IDčka známek na portále), importem se změní právě tyto známky na portále.
+  - Pokud se přidá řádek, který nemá nastaveno "scoreId", pak se při importu vytvoří nová známka na portále.
+  - Pokud se uvede namísto známky (1-5-N) písmeno 'D', importem bude známka na portálu smazána.
 
-Bez parametru 'fuzzy' dojde k aktualizaci jiz existujici znamky pouze na zaklade stejneho scoreId.  
-S parametrem 'fuzzy' dojde k aktualizaci znamky bud na zaklade shodneho scoreId nebo shodneho popisu.  
+CSV soubor se importuje takto:
 
-Mazani znamek: importuj csv s vyexportovanymi scoreId, ale smaz v tech radcich hodnoty (1-5-N).
+```bash
+spse import < data.csv
+```
 
-## export z moodle
+Bez argumentu 'doit' se však pouze zobrazí, co by se na portále změnilo. Aby se to opravdu stalo, je třeba použít 'doit':
 
-1. vytvor template
+```bash
+spse import doit < data.csv
+```
 
-  ```bash
-  $ ./spse new c3a pss > pss-c3a-new.csv
-  $ ./spse new c3b pss > pss-c3b-new.csv
-  $ ./spse new c3c pss > pss-c3c-new.csv
-  ```
+## vytvoření šablony pro import
 
-  jednotlive csv edituj a odstran zaky, ktere nemas (jejich znamky nelze editovat)
+Občas se hodí vytvořit CSV soubor, který obsahuje všechny žáky nějaké třídy (jehož importem vzniknou na portále nové známky).
 
-2. exportuj znamky z moodle do souboru napr. 'export-znamek-c3.ods'
+Takový soubor se vygeneruje takto:
 
-3. vytvor stejnojmenny konfigurak s koncovkou yml, napr. 'export-znamek-c3.yml' (viz example)
-   v nem jsou definovany ukoly, ktere se maji importovat do portalu (nebo aktualizovat, pokud uz tam jsou)
-   nazvy museji matchovat s castmi nazvu sloupcu v tabulce z moodle; pod temito nazvy se znamky ulozi na portal
+```bash
+./spse new C3a PSS > data.csv
+```
 
-4. pro kazdy ukol definovany v export-znamek-c3.yml se udela prunik s patricnym jmenem&prijmenim v template csv a vyrobi se nove csv vhodne pro import
+## parametr fuzzy
 
-   napriklad je template:
+Normálně má každá známka na portále svoje scoreId, které se exportuje do CSV a při importu se hledá známka podle stejného scoreId.
+Bohužel v případě exportu známek z moodle žádné scoreId nejsou, a tudíž jediná možnost, jak spárovat známku na portále se známkou na moodle je podle stejného popisu.
+Proto existuje argument "fuzzy", který páruje buď podle scoreId nebo jen podle popisu. Viz sekce moodle.
 
-   C3B,PSS,novak,Novák Antonín,,cviceni/teorie,popis,1-5/N,small/big  
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni/teorie,popis,1-2-3-4-5-N,small/big  
-   ...
+```bash
+spse import fuzzy doit < data.csv
+```
 
-   pak
+# moodle
 
-   ```bash
-   $ cat pss-c3a-new.csv | ./moodledit export-znamek-c3
-   ```
+Skript "moodle" exportuje známky z moodle, a to tak, že vygeneruje soubor CSV vhodný pro následný import skriptem "spse".
 
-   vygeneruje
+```bash
+./moodle export ID > data.csv
+./spse import fuzzy doit < data.csv
+```
 
-   C3B,PSS,novak,Novák Antonín,,cviceni,UTP Kabel,1,small  
-   C3B,PSS,novotny2,Novotný Ondřej,,cviceni,UTP Kabel,1,small  
-   ...
+nebo totéž pomocí roury:
 
-5. nakonec se takto pripravena data importuji s parametrem 'fuzzy'; to proto, ze na portale uz muze existovat znamka se stejnym popisem
-   (v moodle nejsou scoreId, takze se pro pripad update hleda na portale znamka se stejnym popisem)
+```bash
+./moodle export ID | ./spse import fuzzy doit
+```
 
+## index žáků
 
-Cely proces pro vsechny c3 tridy muze vypadat takto:
+Aby to fungovalo, je potřeba nejprve vygenerovat z portálu index všech svých žáků (jednou ročně). 
 
-  ```bash
-  $ cat pss-c3*-new.csv | ./moodledit export-znamek-c3 | ./spse import fuzzy doit
-  ```
+Index obsahuje jména, příjmení, třídy a ID žáků. Jelikož se v exportu z moodle vyskytují pouze jména a příjmení, tak názvy tříd a ID žáků je nutno doplňovat - právě z toho indexu.
 
-Nebo jen dve tridy
+```bash
+./spse build-index > moodle.idx
+```
 
-  ```bash
-  $ cat pss-c3a-new.csv pss-c3b-new.csv | ./moodledit export-znamek-c3 | ./spse import fuzzy doit
-  ```
+## konfigurační soubor
 
+Pak je nutno vytvořit konfigurační soubor s definicí úkolů z moodle. Bude se jmenovat například pss-c3b.yml.
+
+## export z moodle => import na portál
+
+```bash
+./moodle export pss-c3b.yml > data.csv
+./spse import fuzzy doit < data.csv
+```
+
+nebo totéž pomocí roury:
+
+```bash
+./moodle export pss-c3b.yml | ./spse import fuzzy doit
+```
+
+Export/import je možno provádět několikanásobně. V takovém případě se změní pouze ty známky na portále, jejichž hodnoty se liší na moodle.
+
+Jelikož nelze párovat známky v moodle s portálem skrze scoreId (v moodle žádné scoreId není), tak jediná možnost je párovat je na základě stejného popisu.
+Proto se při importu musí použít argument "fuzzy". Kdyby se fuzzy neuvedl, vytvořila by se pokaždé nová známka na portále, protože v CSV souboru chybí scoreId.
+
+## konflikty jmen
+
+Může se vyskytnout případ, kdy se víc žáků jmenuje "Jan Novák". Na portále se rozlišují díky unikátním ID, např. "novak6", "novak7",
+jenže v moodle se jmenují pouze "Jan Novák". V takovém případě jsou dvě možnosti:
+
+1) buď v moodle přejmenovat dotyčného tak, aby se jmenoval "Jan Novák (novak6)"
+
+2) nebo v konfiguraci pss-c3b.yml definovat mapování
+
+```yaml
+user_map:
+  "Jan Novák": "novak7"
+```
+
+Takové mapování však bude fungovat pouze tehdy, když ve stejném exportu z moodle bude právě jeden "Jan Novák". Lepší je tudíž žáky přejmenovat.

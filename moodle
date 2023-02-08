@@ -1,0 +1,281 @@
+#!/usr/bin/env ruby
+
+require 'logger'
+require 'mechanize'
+require 'csv'
+require 'yaml'
+
+Encoding.default_internal = "utf-8"
+
+class String
+  def is_number?
+    true if Float(self) rescue false
+  end
+end
+
+PortalStudent = Struct.new(:id, :trida, :name)
+
+class Moodle
+
+  def initialize &block
+    @m = Mechanize.new
+    @m.user_agent_alias = 'Linux Firefox'
+    @dry = true
+    load_session
+    block.call self
+    save_session
+  end
+
+
+  def debug
+    @m.log = Logger.new($stderr)
+    require 'irb'
+    binding.irb
+  end
+
+  def login(user, pass)
+    page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
+    if page.body =~ /Confirm/
+      $stderr.puts "still logged in moodle"
+    else
+      $stderr.puts "moodle login... "
+
+      # should see the proper form
+      form = page.forms.first or raise 'no login form found'
+      form.username = user
+      form.password = pass
+      begin
+        page = @m.submit(form, form.buttons.first)
+      rescue Mechanize::ResponseCodeError
+        # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+      end
+      sleep 2
+      page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
+      raise "moodle login unsuccessful" unless page.body =~ /Confirm/
+
+      save_session # force save now
+    end
+    true
+  end
+
+  def export(url)
+    page = rtr { @m.get(url) }
+    form = page.forms.select { |f| f.button_with(:value=>'Stáhnout') }.first
+    page = @m.submit( form, form.button_with(:name=>'submitbutton') )
+    rows = CSV.new(page.body, encoding: "UTF-8").read.uniq
+
+    # check format
+    rows[0][0] == 'Křestní jméno' or raise "expected Křestní jméno, got '#{rows[0][0]}'"
+    rows[0][1] == 'Příjmení'      or raise "expected Příjmení, got '#{rows[0][1]}'"
+
+    # check for duplicity in names (two or more Jan Novak in C3)
+    already = {}
+    rows.each do |row|
+      fullname = "#{row[1]} #{row[0]}"
+      if already.has_key?(fullname)
+        raise "there are more students of the same name '#{fullname}', please rename them in moodle to '#{fullname} (student_id)' where student_id is his/her id on the portal, or specify user_map '#{fullname}' -> student_id"
+      end
+      already[fullname] = true
+    end
+
+    rows
+  end
+
+  def build_spse_source(exported_rows, idconfig)
+    # get only tasks from the idconfig
+    tasks_or_groups = idconfig.dup
+    %W(csv_export_url type subject user_map).each { |x| tasks_or_groups.delete(x) }
+
+    out = []
+
+    tasks_or_groups.each do |name, defs|
+
+      if defs.has_key?('tasks')
+
+        # it is a group of tasks
+
+        group_name = name
+        group_defs = defs
+        scores = {}
+        group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores) }
+        scores.each do |full_name, score_h|
+          next if score_h[:scores].empty?      # skip optional
+          
+          portal_student = full_name_lookup(full_name, idconfig['user_map'])
+          out << [
+            portal_student.trida,              # C3A
+            idconfig['subject'],               # PSS
+            portal_student.id,                 # novak3
+            portal_student.name,               # Novak Jan
+            nil,                               # score id
+            idconfig['type'],                  # cviceni
+            group_name,                        # Routing I, II a III
+            calc_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
+            group_defs['weight'] || 'big'      # big
+          ]
+        end
+
+      else
+
+        # it is a task
+
+        task_name = name
+        task_defs = defs
+        scores = {}
+        add_scores!(exported_rows, task_name, task_defs, scores)
+        scores.each do |full_name, score_h|
+          next if score_h[:scores].empty?      # skip optional
+          
+          portal_student = full_name_lookup(full_name, idconfig['user_map'])
+          out << [
+            portal_student.trida,              # C3A
+            idconfig['subject'],               # PSS
+            portal_student.id,                 # novak3
+            portal_student.name,               # Novak Jan
+            nil,                               # score id
+            idconfig['type'],                  # cviceni
+            task_name,                         # Ukol: bla bla
+            calc_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
+            task_defs['weight'] || 'big'       # big
+          ]
+        end
+
+      end
+
+    end
+
+    out
+  end
+
+
+  private
+
+  def load_session
+    @m.cookie_jar = YAML::load_file('moodle.session') if File.exists?('moodle.session')
+  end
+
+  def save_session
+    File.open('moodle.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
+  end
+
+  def rtr max=2, &block
+    cnt = 0
+    begin
+      cnt += 1
+      block.call
+    rescue Mechanize::ResponseCodeError
+      if cnt<=max
+        $stderr.puts "error, retry in 20 secs..."
+        sleep 20
+        retry
+      else
+        raise "still error, giving up ;-("
+      end
+    end
+  end
+
+  def add_scores!(exported_rows, task, defs, scores)
+    raise "task '#{task}' has no definition" unless defs.is_a?(Hash)
+
+    task_name = defs['moodle_name'] || task
+    col_num = exported_rows.first.index {|x| x =~ /#{task_name}/i } or raise "no matching column for '#{task}' found in exported csv from moodle"
+
+    exported_rows[1..-1].each do |row|
+      full_name = "#{row[1]} #{row[0]}"
+
+      score = unless row[col_num].is_number?
+        'N'
+      else row[col_num].is_a?(Integer)
+        max = defs['max'] || 100
+        pct = row[col_num].to_f / max
+        if pct>=0.9
+          1
+        elsif pct>=0.7
+          2
+        elsif pct>=0.5
+          3
+        elsif pct>=0.4
+          4
+        else
+          5
+        end
+      end
+
+      h = scores[full_name] ||= {}
+      h[:scores] ||= []
+
+      next if score=='N' and defs['optional']==true
+
+      h[:scores] << score
+    end
+
+    nil
+  end
+
+  # n is true => instead of N it will give 5
+  def calc_score(scores, n)
+    # are there something else than just 'N'? or are there any scores at all?
+    not_n = scores.select { |sc| sc != 'N' }
+    
+    if not_n.length == 0
+      n ? 'N' : 5
+    else
+      sum = scores.sum { |sc| sc=='N' ? 5 : sc }
+      sum / scores.length
+    end
+  end
+
+  def full_name_lookup(full_name, user_map)
+    unless @index
+      raise "moodle.idx not found, generate it using './spse build-index' and try again" unless File.exists?('moodle.idx')
+      @index = YAML::load_file("moodle.idx")
+    end
+
+    if full_name =~ /(\w+) \([\w\d]+\)/                                  # moodle name is in format "Jan Novak (novak4)"
+      student_id = $2
+      return PortalStudent.new(student_id, *@index[student_id])
+    elsif user_map && user_map.has_key?(full_name)                       # there is a mapping "Jan Novak" => "novak4"
+      student_id = user_map[full_name]
+      return PortalStudent.new(student_id, *@index[student_id])
+    else                                                                 # no? try to find the name in the index
+      @index.each do |student_id, ary|
+        if ary[1] == full_name
+          return PortalStudent.new(student_id, *@index[student_id])
+        end
+      end
+    end
+
+    raise "'#{full_name}' not found in moodle.idx"
+  end
+
+end
+
+######
+
+# load and check config
+$CONFIG = YAML::load_file('moodle.cfg')
+%W(user pass login_url).each { |x| raise "no '#{x}' in moodle.cfg" if $CONFIG[x].to_s.empty? }
+
+case ARGV[0]
+  when 'debug'
+    Moodle.new {|x| x.debug }
+  when 'export'
+    ymlfile = ARGV[1]
+    raise "usage: #{$0} export config.yml" unless ymlfile
+    idconfig = YAML::load_file(ymlfile)
+    %W(csv_export_url type subject).each { |x| raise "no '#{x}' found in #{id}.yml" if idconfig[x].to_s.empty? }
+
+    Moodle.new do |moodle|
+      moodle.login($CONFIG['user'], $CONFIG['pass'])
+      exported_rows = moodle.export(idconfig['csv_export_url'])
+      puts moodle.build_spse_source(exported_rows, idconfig).map(&:to_csv).join
+    end
+
+  else
+    $stderr.puts "usage:"
+    $stderr.puts
+    $stderr.puts "./moodle export pss-c3a.yml > data.csv"
+    $stderr.puts
+end
+
+

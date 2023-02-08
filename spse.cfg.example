@@ -1,4 +1,6 @@
+# prihlasovaci jmeno a heslo na portal
 user: molic
-user_id: MO
 pass: abcdefgh
 
+# zkratka
+user_id: MO

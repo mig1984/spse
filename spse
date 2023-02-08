@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+Encoding.default_internal = "utf-8"
+
 require 'logger'
 require 'mechanize'
 require 'csv'
@@ -21,13 +23,6 @@ class SPSE
     save_session
   end
 
-  def load_session
-    @m.cookie_jar = YAML::load_file('spse.session') if File.exists?('spse.session')
-  end
-
-  def save_session
-    File.open('spse.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
-  end
 
   def debug
     @m.log = Logger.new($stderr)
@@ -46,43 +41,88 @@ class SPSE
     end
 
     if logged_in
-      $stderr.puts "still logged in"
+      $stderr.puts "still logged in spse"
     else
-      $stderr.puts "login... "
+      $stderr.puts "spse login... "
 
-      # should see the proper form
+      # unless this is a link, we are already on the
+      # 'Pro zamstnance' page, otherwise click on it first
       if link = @page.link_with(text: 'Pro zaměstnance')
         @page = rtr { @m.click link }
       end
 
-      form = @page.forms.first or raise 'no login form found'
-      form.user = user
-      form.pass = pass
-      begin
-        @page = @m.submit(form, form.buttons.first)
-      rescue Mechanize::ResponseCodeError
-        # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+      2.times do
+        form = @page.forms.first or raise 'no login form found'
+        form.user = user
+        form.pass = pass
+        was_empty_token3 = form.field_with(name: 'token3').value.to_s.empty?
+        begin
+          @page = @m.submit(form, form.buttons.first)  
+        rescue Mechanize::ResponseCodeError
+          # submit redirects immediately to /, but gets 403 code; we have to wait a sec
+        end
+        sleep 2
+
+        if was_empty_token3
+          # update: there is 'token3' hidden field now which is empty for the first time
+          #         after login it shows 'Problémy s přihlášením' and there is the same login form again,
+          #         second login works well, because the token3 is set after the first try
+          $stderr.puts "token3 was empty, try to log in again... "
+          next
+        else
+          break
+        end
+
       end
-      sleep 2
+
       @page = rtr { @m.get('https://www.spsejecna.cz') }
-      raise "login unsuccessful" unless @page.link_with(text: 'Předměty a tematické plány')
+      raise "spse login unsuccessful" unless @page.link_with(text: 'Předměty a tematické plány')
 
       save_session # force save now
     end
 
     nil
   end
+  
+  def my_classes
+    page = rtr { @m.get("https://www.spsejecna.cz/") }
 
-  # calls the block for each Student parsed
+    tridy = []
+    page.search('body > div.main > div > div.box.box-dark > ul > li').each do |li|
+      href = li.at_css('a[class~=link]')['href']
+      if href =~ /\/trida\/(.*?)$/
+        tridy << $1
+      else
+        raise "can't parse name of class from '#{href}'"
+      end
+    end
+    
+    tridy
+  end
+
+  # emit Students of a class (the Student object is incomplete, it is not possible to use it for adding/deleting scores)
+  def with_class(trida, &block)
+    $stderr.puts "loading #{trida} page..."
+    page = rtr { @m.get("https://www.spsejecna.cz/trida/#{trida}") }
+
+    page.search('body > div.main > main > div > ul.list > li').each do |li|
+      href = li.at_css('a[class=item]')['href']
+      if href =~ /([^\/]+)$/
+        id = $1
+      else
+        raise "can't parse student_id"
+      end
+      name = li.at_css('span[class=label]').text.unicode_normalize(:nfkc)
+
+      block.call Student.new(id, name, nil, nil, nil)
+    end
+  end
+
+  # emit Students of a class and subject
   def with_class_and_subject(trida, predmet, &block)
 
     $stderr.puts "loading #{trida} page..."
-    @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page and @page.link_with(text: 'Třídy')
-    link = @page.link_with(text: 'Třídy') or raise "no Třídy link found, not logged in?"
-    page = rtr { @m.click link }
-
-    link = page.link_with(text: /#{trida} \(/i) or raise "no link for '#{trida}'"
-    page = rtr { @m.click link }
+    page = rtr { @m.get("https://www.spsejecna.cz/trida/#{trida}") }
 
     $stderr.puts "loading #{predmet} page..."
     link = page.link_with(text: /Známky #{predmet}/i) or raise "no link for 'Známky #{predmet}'"
@@ -102,7 +142,7 @@ class SPSE
       # there is a sequence of
       #  <strong><a><a><a><a><a>...<span><strong><a><a><a><a><a>...<span>
       # the first strong is Cviceni, the last is Teorie, links in between are scores
-      # and the span is "+" (used to detailed creation of a score)
+      # and the span is "+" (used to detailed creation of the score)
 
       spans = tr.css("span[class='score scores']")
 
@@ -165,27 +205,98 @@ class SPSE
     nil
   end
 
-  # flattenize array (for CSV)
-  def get_list(trida, predmet)
+  def csv_export(trida, predmet)
     list = []
     with_class_and_subject(trida, predmet) do |student|
       if student.scores.empty?
-        list << [trida.upcase, predmet.upcase, student.id, student.name]
+        list << [
+          trida.upcase, 
+          predmet.upcase, 
+          student.id, 
+          student.name
+        ]
       else
         student.scores.each do |score|
-          list << [ trida.upcase, predmet.upcase, student.id, student.name, score.scoreId, score.ct, score.description, score.value, score.weight, score.employee, score.date]
+          list << [
+            trida.upcase, 
+            predmet.upcase, 
+            student.id, 
+            student.name, 
+            score.scoreId, 
+            score.ct, 
+            score.description, 
+            score.value, 
+            score.weight, 
+            score.employee, 
+            score.date
+          ]
         end
       end
     end
-    list
+    list.map(&:to_csv).join
   end
 
-  def get_list_all_new(trida, predmet)
+  def csv_all_new(trida, predmet)
     list = []
     with_class_and_subject(trida, predmet) do |student|
-      list << [trida.upcase, predmet.upcase, student.id, student.name, nil, 'cviceni/teorie', 'popis', '1-2-3-4-5-N', 'small/big']
+      list << [
+        trida.upcase, 
+        predmet.upcase, 
+        student.id, 
+        student.name, 
+        nil, 
+        'cviceni|teorie', 
+        'popis', 
+        '1|2|3|4|5|N', 
+        'small|big'
+      ]
     end
-    list
+    list.map(&:to_csv).join
+  end
+
+  def import_csv(input, fuzzy)
+    input.gsub!(/^\s*#.*$/, '') # strip comments
+    input.gsub!(/^[\s,]*?\n/, '')  # remove empty lines
+    apply_list(CSV.new(input).read.uniq, fuzzy)
+  end
+
+  def build_index()
+    idx = {}
+
+    my_classes.each do |trida|
+      with_class(trida) do |student|
+        idx[student.id] = [trida.upcase, student.name]
+      end
+    end
+
+    idx.to_yaml
+  end
+
+
+  private
+
+  def load_session
+    @m.cookie_jar = YAML::load_file('spse.session') if File.exists?('spse.session')
+  end
+
+  def save_session
+    File.open('spse.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
+  end
+
+  def rtr max=2, &block
+    cnt = 0
+    begin
+      cnt += 1
+      block.call
+    rescue Mechanize::ResponseCodeError
+      if cnt<=max
+        $stderr.puts "error, retry in 20 secs..."
+        sleep 20
+        retry
+      else
+        raise "still error, giving up ;-("
+      end
+    end
   end
 
   def fill_score_form!(form, w_ct, w_description, w_value, w_weight)
@@ -241,11 +352,11 @@ class SPSE
     ary << "#{score.weight} -> #{w_weight}" if w_weight!=score.weight
     unless ary.empty?
 
-      if $CONFIG['user_id'] && w_employee!=$CONFIG['user_id']
+      if $CONFIG['user_id'] && w_employee && w_employee!=$CONFIG['user_id']
         $stderr.puts "  !!! SKIPPING UPDATE: #{w_description}: #{ary.join(', ')} (#{score.employee}, #{score.date})"
         return
       end
-      
+
       $stderr.puts "  - UPDATE: #{w_description}: #{ary.join(', ')} (#{score.employee}, #{score.date})"
 
       raise "can't update score for #{student.name} (no update_url found)" unless score.update_url
@@ -262,6 +373,8 @@ class SPSE
   end
 
   def create_score(student, w_ct, w_description, w_value, w_weight)
+
+    $stderr.puts "  - CREATE: #{w_ct}, #{w_description}, #{w_value}, #{w_weight}"
 
     url = case w_ct
       when 'cviceni'
@@ -315,7 +428,7 @@ class SPSE
       idx[scoreId] = true
     end
 
-    # create a index of student trida/predmet/id
+    # create an index of students by trida/predmet/id
     idx = {}
     list.each do |trida, predmet, id, *x|
       idx[trida.upcase] ||= {}
@@ -347,7 +460,7 @@ class SPSE
             end
 
             if found_score
-              if w_value.to_s.strip.empty?
+              if w_value.to_s.strip == 'D'
                 delete_score(student, found_score, w_employee)
               else
                 update_score(student, found_score, w_ct, w_description, w_value, w_weight, w_employee)
@@ -366,46 +479,14 @@ class SPSE
     nil
   end
 
-  def export_csv(trida, predmet)
-    get_list(trida,predmet).map(&:to_csv).join
-  end
-
-  def export_all_new_csv(trida, predmet)
-    get_list_all_new(trida,predmet).map(&:to_csv).join
-  end
-
-  def import_csv(input, fuzzy)
-    input.gsub!(/^\s*#.*$/, '') # strip comments
-    input.gsub!(/^[\s,]*?\n/, '')  # remove empty lines
-    apply_list(CSV.new(input).read.uniq, fuzzy)
-  end
-
-  private
-
-  def rtr max=2, &block
-    cnt = 0
-    begin
-      cnt += 1
-      block.call
-    rescue Mechanize::ResponseCodeError
-      if cnt<=max
-        $stderr.puts "error, retry in 20 secs..."
-        sleep 20
-        retry
-      else
-        raise "still error, giving up ;-("
-      end
-    end
-  end
 
 end
 
 ######
 
-# create/load and check config
-File.open('spse.cfg','w+') {|f| f.write({user:'', pass: ''}.to_yaml) } unless File.exists?('spse.cfg')
+# load and check config
 $CONFIG = YAML::load_file('spse.cfg')
-raise "no user/pass in spse.cfg" if $CONFIG['user'].to_s.empty? or $CONFIG['pass'].to_s.empty?
+%W(user pass user_id).each { |x| raise "no '#{x}' in moodle.cfg" if $CONFIG[x].to_s.empty? }
 
 case ARGV[0]
   when 'debug'
@@ -416,7 +497,7 @@ case ARGV[0]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     SPSE.new do |x|
       x.login($CONFIG['user'], $CONFIG['pass'])
-      puts x.export_csv(trida, predmet)
+      puts x.csv_export(trida, predmet)
     end
   when 'new'
     trida   = ARGV[1]
@@ -424,7 +505,12 @@ case ARGV[0]
     raise "usage: #{$0} export TRIDA PREDMET" unless trida and predmet
     SPSE.new do |x|
       x.login($CONFIG['user'], $CONFIG['pass'])
-      puts x.export_all_new_csv(trida, predmet)
+      puts x.csv_all_new(trida, predmet)
+    end
+  when 'build-index'
+    SPSE.new do |x|
+      x.login($CONFIG['user'], $CONFIG['pass'])
+      puts x.build_index
     end
   when 'import'
     SPSE.new do |x|
@@ -434,17 +520,32 @@ case ARGV[0]
       x.import_csv($stdin.read, fuzzy)
     end
   else
-    $stderr.puts "usage:"
     $stderr.puts
-    $stderr.puts "./spse export TRIDA PREDMET >> data.csv"
+    $stderr.puts "USAGE:"
     $stderr.puts
-    $stderr.puts "  ... or ..."
+    $stderr.puts "1. EXPORT FROM PORTAL (SCORES TO BE EDITED)"
     $stderr.puts
-    $stderr.puts "./spse new TRIDA PREDMET >> data.csv"
+    $stderr.puts "   ./spse export C3a PSS >  data.csv"
+    $stderr.puts "   ./spse export C3b PSS >> data.csv"
     $stderr.puts
+    $stderr.puts "2. OR CREATE NEW ENTRIES (SCORES TO BE INSERTED)"
     $stderr.puts
-    $stderr.puts "./spse import [fuzzy] [doit] < data.csv   without the 'doit' it means dry-run"
-    $stderr.puts "                                          if score value is missing, the score will be DELETED"
-    $stderr.puts "                                          'fuzzy' matches scoreId or same description"
+    $stderr.puts "   ./spse new C3a PSS > data.csv"
+    $stderr.puts
+    $stderr.puts "3. EDIT THE CSV"
+    $stderr.puts
+    $stderr.puts "   now change the description, score value, weight, etc."
+    $stderr.puts "   by setting the score value to D, the score will be deleted"
+    $stderr.puts
+    $stderr.puts "4. IMPORT CSV (APPLYING CHANGES TO THE PORTAL)"
+    $stderr.puts
+    $stderr.puts "   ./spse import [fuzzy] [doit] < data.csv   without the 'doit' it means dry-run"
+    $stderr.puts "                                             'fuzzy' matches scoreId or same description"
+    $stderr.puts "                                             if score value is set to 'D', the score will be DELETED"
+    $stderr.puts
+    $stderr.puts "5. CREATE INDEX FOR MOODLE"
+    $stderr.puts
+    $stderr.puts "   ./spse build-index > moodle.idx           create index of my students"
+    $stderr.puts
     $stderr.puts
 end
