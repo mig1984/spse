@@ -83,7 +83,7 @@ class SPSE
 
     nil
   end
-  
+
   def my_classes
     page = rtr { @m.get("https://www.spsejecna.cz/") }
 
@@ -96,7 +96,7 @@ class SPSE
         raise "can't parse name of class from '#{href}'"
       end
     end
-    
+
     tridy
   end
 
@@ -209,12 +209,13 @@ class SPSE
     list = []
     with_class_and_subject(trida, predmet) do |student|
       if student.scores.empty?
-        list << [
-          trida.upcase, 
-          predmet.upcase, 
-          student.id, 
-          student.name
-        ]
+# TODO: WTF? proc je tady tohle kdyz nema jeste zadne znamky?
+#        list << [
+#          trida.upcase, 
+#          predmet.upcase, 
+#          student.id, 
+#          student.name
+#        ]
       else
         student.scores.each do |score|
           list << [

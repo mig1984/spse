@@ -81,9 +81,9 @@ class Moodle
     rows
   end
 
-  def build_spse_source(exported_rows, idconfig)
-    # get only tasks from the idconfig
-    tasks_or_groups = idconfig.dup
+  def build_spse_source(exported_rows, ymlconfig)
+    # get only tasks from the ymlconfig
+    tasks_or_groups = ymlconfig.dup
     %W(csv_export_url type subject user_map).each { |x| tasks_or_groups.delete(x) }
 
     out = []
@@ -100,15 +100,15 @@ class Moodle
         group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores) }
         scores.each do |full_name, score_h|
           next if score_h[:scores].empty?      # skip optional
-          
-          portal_student = full_name_lookup(full_name, idconfig['user_map'])
+
+          portal_student = full_name_lookup(full_name, ymlconfig['user_map'])
           out << [
             portal_student.trida,              # C3A
-            idconfig['subject'],               # PSS
+            ymlconfig['subject'],               # PSS
             portal_student.id,                 # novak3
             portal_student.name,               # Novak Jan
             nil,                               # score id
-            idconfig['type'],                  # cviceni
+            ymlconfig['type'],                  # cviceni
             group_name,                        # Routing I, II a III
             calc_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
             group_defs['weight'] || 'big'      # big
@@ -125,15 +125,15 @@ class Moodle
         add_scores!(exported_rows, task_name, task_defs, scores)
         scores.each do |full_name, score_h|
           next if score_h[:scores].empty?      # skip optional
-          
-          portal_student = full_name_lookup(full_name, idconfig['user_map'])
+
+          portal_student = full_name_lookup(full_name, ymlconfig['user_map'])
           out << [
             portal_student.trida,              # C3A
-            idconfig['subject'],               # PSS
+            ymlconfig['subject'],               # PSS
             portal_student.id,                 # novak3
             portal_student.name,               # Novak Jan
             nil,                               # score id
-            idconfig['type'],                  # cviceni
+            ymlconfig['type'],                  # cviceni
             task_name,                         # Ukol: bla bla
             calc_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
             task_defs['weight'] || 'big'       # big
@@ -216,7 +216,7 @@ class Moodle
   def calc_score(scores, n)
     # are there something else than just 'N'? or are there any scores at all?
     not_n = scores.select { |sc| sc != 'N' }
-    
+
     if not_n.length == 0
       n ? 'N' : 5
     else
@@ -262,17 +262,18 @@ case ARGV[0]
   when 'export'
     ymlfile = ARGV[1]
     raise "usage: #{$0} export config.yml" unless ymlfile
-    idconfig = YAML::load_file(ymlfile)
-    %W(csv_export_url type subject).each { |x| raise "no '#{x}' found in #{id}.yml" if idconfig[x].to_s.empty? }
+    ymlconfig = YAML::load_file(ymlfile)
+    %W(csv_export_url type subject).each { |x| raise "no '#{x}' found in #{id}.yml" if ymlconfig[x].to_s.empty? }
 
     Moodle.new do |moodle|
       moodle.login($CONFIG['user'], $CONFIG['pass'])
-      exported_rows = moodle.export(idconfig['csv_export_url'])
-      puts moodle.build_spse_source(exported_rows, idconfig).map(&:to_csv).join
+      exported_rows = moodle.export(ymlconfig['csv_export_url'])
+      puts moodle.build_spse_source(exported_rows, ymlconfig).map(&:to_csv).join
     end
 
   else
-    $stderr.puts "usage:"
+    $stderr.puts
+    $stderr.puts "USAGE:"
     $stderr.puts
     $stderr.puts "./moodle export pss-c3a.yml > data.csv"
     $stderr.puts
