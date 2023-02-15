@@ -121,7 +121,7 @@ class SPSE
 
   # emit Students of a class and subject
   def with_class_and_subject(trida, predmet, &block)
-
+    $stderr.puts
     $stderr.puts "loading #{trida} page..."
     page = rtr { @m.get("https://www.spsejecna.cz/trida/#{trida}") }
 
