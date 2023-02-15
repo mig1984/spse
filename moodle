@@ -98,17 +98,17 @@ class Moodle
         group_defs = defs
         scores = {}
         group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores) }
-        scores.each do |full_name, score_h|
+        scores.each do |student_id, score_h|
           next if score_h[:scores].empty?      # skip optional
 
-          portal_student = full_name_lookup(full_name, ymlconfig['user_map'])
+          portal_student = student_lookup(student_id)
           out << [
             portal_student.trida,              # C3A
-            ymlconfig['subject'],               # PSS
+            ymlconfig['subject'],              # PSS
             portal_student.id,                 # novak3
             portal_student.name,               # Novak Jan
             nil,                               # score id
-            ymlconfig['type'],                  # cviceni
+            ymlconfig['type'],                 # cviceni
             group_name,                        # Routing I, II a III
             calc_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
             group_defs['weight'] || 'big'      # big
@@ -123,17 +123,17 @@ class Moodle
         task_defs = defs
         scores = {}
         add_scores!(exported_rows, task_name, task_defs, scores)
-        scores.each do |full_name, score_h|
+        scores.each do |student_id, score_h|
           next if score_h[:scores].empty?      # skip optional
 
-          portal_student = full_name_lookup(full_name, ymlconfig['user_map'])
+          portal_student = student_lookup(student_id)
           out << [
             portal_student.trida,              # C3A
-            ymlconfig['subject'],               # PSS
+            ymlconfig['subject'],              # PSS
             portal_student.id,                 # novak3
             portal_student.name,               # Novak Jan
             nil,                               # score id
-            ymlconfig['type'],                  # cviceni
+            ymlconfig['type'],                 # cviceni
             task_name,                         # Ukol: bla bla
             calc_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
             task_defs['weight'] || 'big'       # big
@@ -182,6 +182,9 @@ class Moodle
 
     exported_rows[1..-1].each do |row|
       full_name = "#{row[1]} #{row[0]}"
+      email = row[5]
+      email =~ /^(.*?)@spsejecna\.cz$/ or raise "email '#{email}' of '#{full_name}' is not @spsejecna.cz, can't distinguish student_id"
+      student_id = $1
 
       score = unless row[col_num].is_number?
         'N'
@@ -201,7 +204,7 @@ class Moodle
         end
       end
 
-      h = scores[full_name] ||= {}
+      h = scores[student_id] ||= {}
       h[:scores] ||= []
 
       next if score=='N' and defs['optional']==true
@@ -212,40 +215,30 @@ class Moodle
     nil
   end
 
-  # n is true => instead of N it will give 5
+  # n is 1-5-N => instead of N it will set this
   def calc_score(scores, n)
     # are there something else than just 'N'? or are there any scores at all?
     not_n = scores.select { |sc| sc != 'N' }
 
     if not_n.length == 0
-      n ? 'N' : 5
+      n ? n : 5
     else
       sum = scores.sum { |sc| sc=='N' ? 5 : sc }
       sum / scores.length
     end
   end
 
-  def full_name_lookup(full_name, user_map)
+  def student_lookup(student_id)
     unless @index
       raise "moodle.idx not found, generate it using './spse build-index' and try again" unless File.exists?('moodle.idx')
       @index = YAML::load_file("moodle.idx")
     end
-
-    if full_name =~ /(\w+) \([\w\d]+\)/                                  # moodle name is in format "Jan Novak (novak4)"
-      student_id = $2
-      return PortalStudent.new(student_id, *@index[student_id])
-    elsif user_map && user_map.has_key?(full_name)                       # there is a mapping "Jan Novak" => "novak4"
-      student_id = user_map[full_name]
-      return PortalStudent.new(student_id, *@index[student_id])
-    else                                                                 # no? try to find the name in the index
-      @index.each do |student_id, ary|
-        if ary[1] == full_name
-          return PortalStudent.new(student_id, *@index[student_id])
-        end
-      end
+    
+    unless @index.has_key?(student_id)
+      raise "student_id '#{student_id}' not found in moodle.idx"
     end
-
-    raise "'#{full_name}' not found in moodle.idx"
+    
+    PortalStudent.new(student_id, *@index[student_id])
   end
 
 end

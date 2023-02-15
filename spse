@@ -102,6 +102,7 @@ class SPSE
 
   # emit Students of a class (the Student object is incomplete, it is not possible to use it for adding/deleting scores)
   def with_class(trida, &block)
+    $stderr.puts
     $stderr.puts "loading #{trida} page..."
     page = rtr { @m.get("https://www.spsejecna.cz/trida/#{trida}") }
 

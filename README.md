@@ -79,7 +79,7 @@ nebo totéž pomocí roury:
 
 ## index žáků
 
-Aby to fungovalo, je potřeba nejprve vygenerovat z portálu index všech svých žáků (jednou ročně). 
+Aby to fungovalo, je potřeba nejprve vygenerovat z portálu index všech svých žáků (jednou ročně nebo když někdo odešel/přišel).
 
 Index obsahuje jména, příjmení, třídy a ID žáků. Jelikož se v exportu z moodle vyskytují pouze jména a příjmení, tak názvy tříd a ID žáků je nutno doplňovat - právě z toho indexu.
 
@@ -108,19 +108,3 @@ Export/import je možno provádět několikanásobně. V takovém případě se 
 
 Jelikož nelze párovat známky v moodle s portálem skrze scoreId (v moodle žádné scoreId není), tak jediná možnost je párovat je na základě stejného popisu.
 Proto se při importu musí použít argument "fuzzy". Kdyby se fuzzy neuvedl, vytvořila by se pokaždé nová známka na portále, protože v CSV souboru chybí scoreId.
-
-## konflikty jmen
-
-Může se vyskytnout případ, kdy se víc žáků jmenuje "Jan Novák". Na portále se rozlišují díky unikátním ID, např. "novak6", "novak7",
-jenže v moodle se jmenují pouze "Jan Novák". V takovém případě jsou dvě možnosti:
-
-1) buď v moodle přejmenovat dotyčného tak, aby se jmenoval "Jan Novák (novak6)"
-
-2) nebo v konfiguraci pss-c3b.yml definovat mapování
-
-```yaml
-user_map:
-  "Jan Novák": "novak7"
-```
-
-Takové mapování však bude fungovat pouze tehdy, když ve stejném exportu z moodle bude právě jeden "Jan Novák". Lepší je tudíž žáky přejmenovat.
