@@ -34,8 +34,10 @@ class Moodle
   end
 
   def login(user, pass)
+    confirm = /Confirm|Potvrdit/  # is displayed if the user is logged in (confirm to logout)
+    
     page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
-    if page.body =~ /Confirm/
+    if page.body =~ confirm
       $stderr.puts "still logged in moodle"
     else
       $stderr.puts "moodle login... "
@@ -51,7 +53,7 @@ class Moodle
       end
       sleep 2
       page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
-      raise "moodle login unsuccessful" unless page.body =~ /Confirm|Potvrdit/
+      raise "moodle login unsuccessful" unless page.body =~ confirm
 
       save_session # force save now
     end
