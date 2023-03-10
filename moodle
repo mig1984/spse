@@ -70,16 +70,6 @@ class Moodle
     rows[0][0] == 'Křestní jméno' or raise "expected Křestní jméno, got '#{rows[0][0]}'"
     rows[0][1] == 'Příjmení'      or raise "expected Příjmení, got '#{rows[0][1]}'"
 
-    # check for duplicity in names (two or more Jan Novak in C3)
-    already = {}
-    rows.each do |row|
-      fullname = "#{row[1]} #{row[0]}"
-      if already.has_key?(fullname)
-        raise "there are more students of the same name '#{fullname}', please rename them in moodle to '#{fullname} (student_id)' where student_id is his/her id on the portal, or specify user_map '#{fullname}' -> student_id"
-      end
-      already[fullname] = true
-    end
-
     rows
   end
 
