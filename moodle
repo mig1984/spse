@@ -51,7 +51,7 @@ class Moodle
       end
       sleep 2
       page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
-      raise "moodle login unsuccessful" unless page.body =~ /Confirm/
+      raise "moodle login unsuccessful" unless page.body =~ /Confirm|Potvrdit/
 
       save_session # force save now
     end
