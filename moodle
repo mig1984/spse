@@ -34,12 +34,9 @@ class Moodle
   end
 
   def login(user, pass)
-    confirm = /Confirm|Potvrdit/  # is displayed if the user is logged in (confirm to logout)
-    
     page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
-    if page.body =~ confirm
-      $stderr.puts "still logged in moodle"
-    else
+    form = page.forms.first  # should be the login form
+    if form && form.respond_to?(:username)
       $stderr.puts "moodle login... "
 
       # should see the proper form
@@ -56,13 +53,16 @@ class Moodle
       raise "moodle login unsuccessful" unless page.body =~ confirm
 
       save_session # force save now
+
+    else
+      $stderr.puts "still logged in moodle"
     end
     true
   end
 
   def export(url)
     page = rtr { @m.get(url) }
-    form = page.forms.select { |f| f.button_with(:value=>'Stáhnout') }.first
+    form = page.forms.select { |f| f.button_with(:value=>/Stáhnout|Download/) }.first or raise "no download button found"
     page = @m.submit( form, form.button_with(:name=>'submitbutton') )
     rows = CSV.new(page.body, encoding: "UTF-8").read.uniq
 
@@ -76,7 +76,7 @@ class Moodle
   def build_spse_source(exported_rows, ymlconfig)
     # get only tasks from the ymlconfig
     tasks_or_groups = ymlconfig.dup
-    %W(csv_export_url type subject user_map).each { |x| tasks_or_groups.delete(x) }
+    %W(csv_export_url type subject).each { |x| tasks_or_groups.delete(x) }
 
     out = []
 
