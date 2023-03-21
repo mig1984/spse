@@ -37,7 +37,7 @@ class Moodle
     page = rtr { @m.get('https://moodle.spsejecna.cz/login/index.php') }
 
     form = page.forms.first  # should be the login form (unless logged-in already)
-    if form && form.respond_to?(:username)
+    if form && form.field_with(:name=>'username')
 
       $stderr.puts "moodle login... "
       form.username = user
