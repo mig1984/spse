@@ -319,7 +319,8 @@ class SPSE
       when 'TEORIE'
         field.option_with(text: 'Teorie').click
       else
-        raise "error: '#{w_ct}' is not cviceni/teorie"
+        # kdyz je pouze teorie nebo pouze cviceni, link chybi
+        #raise "error: '#{w_ct}' is not cviceni/teorie"
     end
 
     field = form.field_with(name: 'weight')
