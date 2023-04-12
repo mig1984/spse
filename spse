@@ -438,7 +438,7 @@ class SPSE
       scoreId = x[4]
       next if ! scoreId
       if idx.has_key?(scoreId)
-        raise "duplicate scoreId #{scoreId} found (don not set scoreId to create a new score)"
+        raise "duplicate scoreId #{scoreId} found (do not set the scoreId field if you wish to create a new score record)"
       end
       idx[scoreId] = true
     end
@@ -501,7 +501,7 @@ end
 
 # load and check config
 $CONFIG = YAML::load_file('spse.cfg')
-%W(user pass user_id).each { |x| raise "no '#{x}' in moodle.cfg" if $CONFIG[x].to_s.empty? }
+%W(user pass user_id).each { |x| raise "no '#{x}' in spse.cfg" if $CONFIG[x].to_s.empty? }
 
 case ARGV[0]
   when 'debug'
