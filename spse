@@ -312,6 +312,9 @@ class SPSE
 
     form.description = w_description
 
+
+begin
+
     field = form.field_with(name: 'subjectPartId')
     case w_ct.upcase
       when 'CVICENI'
@@ -322,6 +325,9 @@ class SPSE
         # kdyz je pouze teorie nebo pouze cviceni, link chybi
         #raise "error: '#{w_ct}' is not cviceni/teorie"
     end
+    
+rescue Exception
+end
 
     field = form.field_with(name: 'weight')
     case w_weight.upcase
