@@ -312,22 +312,19 @@ class SPSE
 
     form.description = w_description
 
+    if w_ct
 
-begin
+      field = form.field_with(name: 'subjectPartId')
+      case w_ct.upcase
+        when 'CVICENI'
+          field.option_with(text: 'Cvičení').click
+        when 'TEORIE'
+          field.option_with(text: 'Teorie').click
+        else
+          raise "error: '#{w_ct}' is not cviceni/teorie"
+      end
 
-    field = form.field_with(name: 'subjectPartId')
-    case w_ct.upcase
-      when 'CVICENI'
-        field.option_with(text: 'Cvičení').click
-      when 'TEORIE'
-        field.option_with(text: 'Teorie').click
-      else
-        # kdyz je pouze teorie nebo pouze cviceni, link chybi
-        #raise "error: '#{w_ct}' is not cviceni/teorie"
     end
-    
-rescue Exception
-end
 
     field = form.field_with(name: 'weight')
     case w_weight.upcase
@@ -404,7 +401,14 @@ end
 
     page = rtr { @m.get(url) }
     form = page.forms.first
-    fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+
+    # only teorie / only cviceni
+    if student.cviceni_create_url != student.teorie_create_url
+      fill_score_form!(form, w_ct, w_description, w_value, w_weight)
+    else
+      fill_score_form!(form, nil, w_description, w_value, w_weight)
+    end
+
     unless @dry
       page = rtr { form.submit }
       raise "create unsuccessful?" if page.title !~ /Známky/
