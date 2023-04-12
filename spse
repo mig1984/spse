@@ -156,6 +156,13 @@ class SPSE
         end
         cviceni_create_url = vice.call(spans[0])
         teorie_create_url  = vice.call(spans[1])
+      elsif spans.length==1
+        vice = lambda do |span| # last link is "Více..." -> will be used to set scores
+          links = span.css('a')
+          raise "expected 7 links in score scores" unless links.length==7
+          links.last['href']
+        end
+        teorie_create_url  = vice.call(spans[0])
       else
         cviceni_create_url = nil
         teorie_create_url  = nil
