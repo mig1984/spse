@@ -13,6 +13,8 @@ class String
   end
 end
 
+Score = Struct.new(:max, :points)
+
 PortalStudent = Struct.new(:id, :trida, :name)
 
 class Moodle
@@ -21,7 +23,7 @@ class Moodle
     @m = Mechanize.new
     @m.user_agent_alias = 'Linux Firefox'
     @dry = true
-    load_session
+    #load_session
     block.call self
     save_session
   end
@@ -100,7 +102,7 @@ class Moodle
             nil,                               # score id
             ymlconfig['type'],                 # cviceni
             group_name,                        # Routing I, II a III
-            calc_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
+            calc_final_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
             group_defs['weight'] || 'big'      # big
           ]
         end
@@ -125,7 +127,7 @@ class Moodle
             nil,                               # score id
             ymlconfig['type'],                 # cviceni
             task_name,                         # Ukol: bla bla
-            calc_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
+            calc_final_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
             task_defs['weight'] || 'big'       # big
           ]
         end
@@ -168,7 +170,8 @@ class Moodle
     raise "task '#{task}' has no definition" unless defs.is_a?(Hash)
 
     task_name = defs['moodle_name'] || task
-    col_num = exported_rows.first.index {|x| x =~ /#{task_name}/i } or raise "no matching column for '#{task}' found in exported csv from moodle"
+    column_match_regex = /#{ task_name.gsub(/[^a-zA-Z0-9_ -]/, '.') }/i
+    col_num = exported_rows.first.index {|x| x =~ column_match_regex } or raise "no matching column for '#{task}' found in exported csv from moodle (#{exported_rows.first.join(', ')})"
 
     exported_rows[1..-1].each do |row|
       full_name = "#{row[1]} #{row[0]}"
@@ -176,46 +179,46 @@ class Moodle
       email =~ /^(.*?)@spsejecna\.cz$/ or raise "email '#{email}' of '#{full_name}' is not @spsejecna.cz, can't distinguish student_id"
       student_id = $1
 
-      score = unless row[col_num].is_number?
-        'N'
-      else row[col_num].is_a?(Integer)
-        max = defs['max'] || 100
-        pct = row[col_num].to_f / max
-        if pct>=0.9
-          1
-        elsif pct>=0.7
-          2
-        elsif pct>=0.5
-          3
-        elsif pct>=0.4
-          4
-        else
-          5
-        end
-      end
-
       h = scores[student_id] ||= {}
       h[:scores] ||= []
 
-      next if score=='N' and defs['optional']==true
-
-      h[:scores] << score
+      max = defs['max'] || 100
+      if row[col_num].is_number?                # student got some points
+         h[:scores] << Score.new(max, row[col_num].to_i)
+      else
+         next if defs['optional']==true         # task is optional and no points => skip
+         h[:scores] << Score.new(max, 'N')
+      end
     end
 
     nil
   end
 
   # n is 1-5-N => instead of N it will set this
-  def calc_score(scores, n)
+  def calc_final_score(scores, n)
     # are there something else than just 'N'? or are there any scores at all?
-    not_n = scores.select { |sc| sc != 'N' }
+    not_n = scores.select { |score| score.points != 'N' }
 
-    if not_n.length == 0
-      n ? n : 5
+    if not_n.length == 0  # everything is just 'N' => either override it to the 'n' argument or 5 by default
+      result = n ? n : 5
     else
-      sum = scores.sum { |sc| sc=='N' ? 5 : sc }
-      sum / scores.length
+      sum_of_max = scores.sum(&:max)
+      sum_of_points = scores.sum { |score| score.points=='N' ? 0 : score.points }   # to be able to calculate an average, N is converted to 0
+      pct = (sum_of_points.to_f/sum_of_max.to_f)*100
+      result = if pct>=90
+        1
+      elsif pct>=70
+        2
+      elsif pct>=50
+        3
+      elsif pct>=40
+        4
+      else
+        5
+      end
     end
+
+    result
   end
 
   def student_lookup(student_id)
