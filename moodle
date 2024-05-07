@@ -191,7 +191,11 @@ class Moodle
          h[:scores] << Score.new(max, row[col_num].to_i)
       else
          next if defs['optional']==true         # task is optional and no points => skip
-         h[:scores] << Score.new(max, 'N')
+         if defs['default']
+            h[:scores] << Score.new(max, defs['default'])
+         else
+            h[:scores] << Score.new(max, 'N')
+         end
       end
     end
 
@@ -200,14 +204,21 @@ class Moodle
 
   # n is 1-5-N => instead of N it will set this
   def calc_final_score(scores, n)
-    # are there something else than just 'N'? or are there any scores at all?
-    not_n = scores.select { |score| score.points != 'N' }
+    has_n = scores.find { |score| score.points == 'N' } 
 
-    if not_n.length == 0  # everything is just 'N' => either override it to the 'n' argument or 5 by default
-      result = n ? n : 5
+    # if there is a task with 'N' (in the task-group or the task itself has no points)
+    # => it results in 'N' for the whole group (or the task) unless overridden
+    # otherwise if there is no 'N' in the task-group or the task itself has some point
+    # => it results in an average
+
+    if has_n
+
+      result = n ? n : 'N'
+
     else
+
       sum_of_max = scores.sum(&:max)
-      sum_of_points = scores.sum { |score| score.points=='N' ? 0 : score.points }   # to be able to calculate an average, N is converted to 0
+      sum_of_points = scores.sum(&:points)
       pct = (sum_of_points.to_f/sum_of_max.to_f)*100
       result = if pct>=90
         1
@@ -220,6 +231,7 @@ class Moodle
       else
         5
       end
+
     end
 
     result

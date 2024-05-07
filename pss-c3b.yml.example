@@ -14,7 +14,7 @@ csv_export_url: https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&gr
 # V exportu z moodle se hledá úkol, který v názvu obsahuje "IPv6 konektivita" a na portále pak vznikne známka, která bude mít v popisu "IPv6 konektivita":
 
 "IPv6 konektivita":
-    weight: "small"
+    weight: small
     max: 100
 
 # Pokud se liší popis známky na portále a jméno úkolu na moodle, lze to definovat pomocí moodle_name.
@@ -32,23 +32,26 @@ csv_export_url: https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&gr
     max: 100
     optional: true
 
-# Nedefinovaná známka: pokud úkol nemá žádnou známku na moodle, normálně by z něj vznikla 5ka. Je však možné
-# uvést "N: N", čímž z takových úkolů bude na portále N (nebo 1-5). Čili default je "N: 5".
+# Nedefinovaná známka: pokud úkol nemá žádnou známku na moodle, normálně by z něj vzniklo 'N'. Je však možné
+# uvést "N: 5", čímž z takových úkolů bude na portále 5.
 
 "Routing II.":
     weight: small
     max: 100
-    N: N
-
+    N: 5
 
 # Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory":
+# Pokud je ve skupine jediný úkol, který nemá nastaveny žádné body, je výsledek 'N'. Toto lze změnit tak, že se jednotlivým 
+# úkolům dá "default", čili defaultní body.
 
 "Adresáře a soubory":
   weight: big
   tasks:
     "Základní práce se soubory":
+      default: 0
       max: 100
     "Připojte disk":
+      default: 0
       max: 100
     "Pohyb mezi adresáři a vytváření souboru":
       max: 5
