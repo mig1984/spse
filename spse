@@ -466,7 +466,7 @@ class SPSE
             found_score = if fuzzy
               student.scores.find do |score|
                 score.scoreId.to_s == w_scoreId.to_s ||
-                score.description.to_s.upcase == w_description.to_s.upcase
+                ( score.description.to_s.upcase == w_description.to_s.upcase ) && w_ct == score.ct
               end
             else
               student.scores.find do |score|
