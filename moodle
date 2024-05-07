@@ -23,7 +23,7 @@ class Moodle
     @m = Mechanize.new
     @m.user_agent_alias = 'Linux Firefox'
     @dry = true
-    #load_session
+    load_session
     block.call self
     save_session
   end
