@@ -143,11 +143,15 @@ class Moodle
   private
 
   def load_session
-    @m.cookie_jar = YAML::load_file('moodle.session') if File.exists?('moodle.session')
+    begin
+       @m.cookie_jar.load('moodle.session')
+    rescue Exception
+       $stderr.puts $!
+    end
   end
 
   def save_session
-    File.open('moodle.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
+    @m.cookie_jar.save('moodle.session', session: true)
   end
 
   def rtr max=2, &block

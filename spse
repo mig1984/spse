@@ -33,9 +33,13 @@ class SPSE
   def login(user, pass)
     @page = rtr { @m.get('https://www.spsejecna.cz') } unless @page
 
-    logged_in = if link = @page.link_with(text: 'Předměty a tematické plány')
+    if link = @page.link_with(text: 'Pro zaměstnance')
       @page = rtr { @m.click link }
-      @page.link_with(text: 'Předměty a tematické plány') ? true : false  # still logged in?
+    end
+
+    logged_in = if link = @page.link_with(text: 'Můj profil')
+      @page = rtr { @m.click link }
+      @page.link_with(text: 'Můj profil') ? true : false  # still logged in?
     else
       false
     end
@@ -76,7 +80,7 @@ class SPSE
       end
 
       @page = rtr { @m.get('https://www.spsejecna.cz') }
-      raise "spse login unsuccessful" unless @page.link_with(text: 'Předměty a tematické plány')
+      raise "spse login unsuccessful" unless @page.link_with(text: 'Můj profil')
 
       save_session # force save now
     end
@@ -282,11 +286,15 @@ class SPSE
   private
 
   def load_session
-    @m.cookie_jar = YAML::load_file('spse.session') if File.exists?('spse.session')
+    begin
+       @m.cookie_jar.load('spse.session')
+    rescue Exception
+       $stderr.puts $!
+    end
   end
 
   def save_session
-    File.open('spse.session','w+') {|f| f.write @m.cookie_jar.to_yaml }
+    @m.cookie_jar.save('spse.session', :session=>true)
   end
 
   def rtr max=2, &block
