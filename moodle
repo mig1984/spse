@@ -169,13 +169,19 @@ class Moodle
       end
     end
   end
+  
+  def find_first_index_with_substring(array, substring)
+    array.each_with_index do |str, index|
+      return index if str.include?(substring)
+    end
+    nil
+  end
 
   def add_scores!(exported_rows, task, defs, scores)
     raise "task '#{task}' has no definition" unless defs.is_a?(Hash)
 
     task_name = defs['moodle_name'] || task
-    column_match_regex = /#{ task_name.gsub(/[^a-zA-Z0-9_ -]/, '.') }/i
-    col_num = exported_rows.first.index {|x| x =~ column_match_regex } or raise "no matching column for '#{task}' found in exported csv from moodle (#{exported_rows.first.join(', ')})"
+    col_num = find_first_index_with_substring(exported_rows.first, task_name) or raise "no matching column for '#{task}' found in exported csv from moodle (#{exported_rows.first.join(', ')})"
 
     exported_rows[1..-1].each do |row|
       full_name = "#{row[1]} #{row[0]}"
@@ -220,6 +226,7 @@ class Moodle
       sum_of_max = scores.sum(&:max)
       sum_of_points = scores.sum(&:points)
       pct = (sum_of_points.to_f/sum_of_max.to_f)*100
+
       result = if pct>=90
         1
       elsif pct>=70
