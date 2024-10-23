@@ -9,7 +9,7 @@ require 'yaml'
 
 class SPSE
 
-  Student = Struct.new(:id, :name, :scores, :cviceni_create_url, :teorie_create_url)
+  Student = Struct.new(:id, :name, :scores, :create_url, :cviceni_create_url, :teorie_create_url)
   Score   = Struct.new(:scoreId, :ct, :description, :value, :weight, :employee, :date, :update_url)
 
   attr_accessor :dry
@@ -163,10 +163,11 @@ class SPSE
         teorie_create_url  = vice.call(spans[1])
       elsif spans.length==1
         # there's no teorie _and_ cviceni, only teorie or cviceni
-        teorie_create_url = cviceni_create_url = vice.call(spans[0])
+        create_url = vice.call(spans[0])
       else
         cviceni_create_url = nil
         teorie_create_url  = nil
+        create_url = nil
       end
 
       ct = nil
@@ -207,7 +208,7 @@ class SPSE
 
       end
 
-      block.call Student.new(id, name, scores, cviceni_create_url, teorie_create_url)
+      block.call Student.new(id, name, scores, create_url, cviceni_create_url, teorie_create_url)
 
     end
 
@@ -397,6 +398,8 @@ class SPSE
         student.cviceni_create_url
       when 'teorie'
         student.teorie_create_url
+      when nil  # TP
+        student.create_url
       else
         raise "error: '#{w_ct}' is not cviceni/teorie"
     end
@@ -407,9 +410,11 @@ class SPSE
 
     if student.cviceni_create_url != student.teorie_create_url
       fill_score_form!(form, w_ct, w_description, w_value, w_weight)
-    else
+    elsif student.create_url
       # a subject with only teorie or cviceni (-> both create links are the same)
       fill_score_form!(form, nil, w_description, w_value, w_weight)
+    else 
+      raise "create_url missing? (#{student})"
     end
 
     unless @dry
