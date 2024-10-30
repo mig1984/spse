@@ -183,11 +183,13 @@ class Moodle
     task_name = defs['moodle_name'] || task
     col_num = find_first_index_with_substring(exported_rows.first, task_name) or raise "no matching column for '#{task}' found in exported csv from moodle (#{exported_rows.first.join(', ')})"
 
-    default_points = if group_defs # this task is a subtask
+    if group_defs
+       # this task is a subtask
        # set default points for all subtasks
-       group_defs['default_points'] || 'N' 
+       default_points = group_defs['default_points'] || 'N' 
     else
-       'N'
+       # this is a task
+       default_points = 'N'
     end
 
     exported_rows[1..-1].each do |row|
@@ -204,7 +206,7 @@ class Moodle
          h[:scores] << Score.new(max, row[col_num].to_i)
       else
          next if defs['optional']==true         # task is optional and no points => skip
-         h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)
+         h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)   # default_points may override group default_points
 
          #$stderr.puts row.to_s
          #$stderr.puts sc.to_s
