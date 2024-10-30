@@ -276,7 +276,16 @@ case ARGV[0]
 
     Moodle.new do |moodle|
       moodle.login($CONFIG['user'], $CONFIG['pass'])
-      exported_rows = moodle.export(ymlconfig['csv_export_url'])
+
+      if ymlconfig['csv_export_url'].is_a?(Array)
+        exported_rows = []
+        ymlconfig['csv_export_url'].each do
+          exported_rows += moodle.export(ymlconfig['csv_export_url'])
+        end
+      else
+        exported_rows = moodle.export(ymlconfig['csv_export_url'])
+      end
+
       puts moodle.build_spse_source(exported_rows, ymlconfig).map(&:to_csv).join
     end
 
