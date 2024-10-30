@@ -3,10 +3,15 @@ subject: PSS
 type: cviceni
 # type: teorie
 
-# Tato URL exportuje z moodle ve formátu CSV. Lze přitom specifikovat i konkrétní skupinu v moodle:
+# Tato URL (ci vice) exportuje z moodle ve formátu CSV. Lze přitom specifikovat i konkrétní skupinu v moodle:
 # (to se nedá vymyslet, to se musí v moodle naklikat, stisknout tlačítko Exportovat a pak tu URL zkopírovat)
 
 csv_export_url: https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&group=123
+
+csv_export_url:
+  - https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&group=123
+  - https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&group=124
+  - https://moodle.spsejecna.cz/grade/export/txt/index.php?id=155&group=125
 
 
 # Nyní následuje definice úkolů:
