@@ -45,18 +45,18 @@ csv_export_url:
     max: 100
     N: 5
 
-# Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory":
-# Pokud je ve skupine jediný úkol, který nemá nastaveny žádné body, je výsledek 'N'. Toto lze změnit tak, že se jednotlivým 
-# úkolům dá "default", čili defaultní body.
+# Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory".
+# Pokud jediný podúkol bude N, pak celková známka je N.
+# Toto chování lze změnit pomocí "default_points" (které je defaultně právě N), ale lze ho nastavit na 0, čímž z neodevzdaných úkolů bude 0 bodů.
+# default_points lze nastavit buď pro celou skupinu nebo pro každý úkol zvlášť.
 
 "Adresáře a soubory":
   weight: big
+  default_points: N
   tasks:
     "Základní práce se soubory":
-      default: 0
       max: 100
     "Připojte disk":
-      default: 0
       max: 100
     "Pohyb mezi adresáři a vytváření souboru":
       max: 5
