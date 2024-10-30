@@ -89,7 +89,7 @@ class Moodle
         group_name = name
         group_defs = defs
         scores = {}
-        group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores) }
+        group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores, group_defs) }
         scores.each do |student_id, score_h|
           next if score_h[:scores].empty?      # skip optional
 
@@ -114,7 +114,7 @@ class Moodle
         task_name = name
         task_defs = defs
         scores = {}
-        add_scores!(exported_rows, task_name, task_defs, scores)
+        add_scores!(exported_rows, task_name, task_defs, scores, nil)
         scores.each do |student_id, score_h|
           next if score_h[:scores].empty?      # skip optional
 
@@ -177,11 +177,18 @@ class Moodle
     nil
   end
 
-  def add_scores!(exported_rows, task, defs, scores)
+  def add_scores!(exported_rows, task, defs, scores, group_defs=nil)
     raise "task '#{task}' has no definition" unless defs.is_a?(Hash)
 
     task_name = defs['moodle_name'] || task
     col_num = find_first_index_with_substring(exported_rows.first, task_name) or raise "no matching column for '#{task}' found in exported csv from moodle (#{exported_rows.first.join(', ')})"
+
+    default_points = if group_defs # this task is a subtask
+       # set default points for all subtasks
+       group_defs['default_points'] || 'N' 
+    else
+       'N'
+    end
 
     exported_rows[1..-1].each do |row|
       full_name = "#{row[0]} #{row[1]}"
@@ -197,11 +204,11 @@ class Moodle
          h[:scores] << Score.new(max, row[col_num].to_i)
       else
          next if defs['optional']==true         # task is optional and no points => skip
-         if defs['default']
-            h[:scores] << Score.new(max, defs['default'])
-         else
-            h[:scores] << Score.new(max, 'N')
-         end
+         h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)
+
+         #$stderr.puts row.to_s
+         #$stderr.puts sc.to_s
+
       end
     end
 
