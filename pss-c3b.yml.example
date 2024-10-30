@@ -46,9 +46,11 @@ csv_export_url:
     N: 5
 
 # Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory".
-# Pokud jediný podúkol bude N, pak celková známka je N.
-# Toto chování lze změnit pomocí "default_points" (které je defaultně právě N), ale lze ho nastavit na 0, čímž z neodevzdaných úkolů bude 0 bodů.
-# default_points lze nastavit buď pro celou skupinu nebo pro každý úkol zvlášť.
+# Pokud jediný podúkol bude N, pak celková známka na portále bude N.
+# Pokud by měla být celková známka na portále N, lze to ještě změnit pomocí "N: 5" a budou tam pětky.
+# Neodevzdaný úkol dostává default_points. Implicitně je nastaveno "default_points: N", takže se to chová jak je popsáno výše.
+# Můžu však změnit "default_points: 0", a tudíž se neodevzdané úkoly budou počítat za 0 bodů.
+# Default_points lze specifikovat jak pro celou skupinu tak pro konkrétní podúkol.
 
 "Adresáře a soubory":
   weight: big
@@ -61,3 +63,63 @@ csv_export_url:
     "Pohyb mezi adresáři a vytváření souboru":
       max: 5
 
+
+
+Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále N (implicitni chovani)
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+     max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+     max: 3
+
+
+Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále 5
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  N: 5
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+     max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+     max: 3
+
+
+Příklad: neodevzdané podúkoly se počítají za 0 bodů, na portále bude známka podle průměru
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  default_points: 0
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+     max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+     max: 3
+
+
+Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (a známka na portále bude tudíž taky N); neodevzdaný úkol 2.2 se však počítá za 0 bodů
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+     max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+     default_points: 0
+     max: 3
+
+
+Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (ale známka na portále bude 5); neodevzdaný úkol 2.2 se počítá za 0 bodů
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  N: 5
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+     max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+     default_points: 0
+     max: 3 
