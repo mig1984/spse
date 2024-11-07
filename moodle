@@ -281,7 +281,7 @@ case ARGV[0]
     ymlfile = ARGV[1]
     raise "usage: #{$0} export config.yml" unless ymlfile
     ymlconfig = YAML::load_file(ymlfile)
-    %W(csv_export_url type subject).each { |x| raise "no '#{x}' found in #{id}.yml" if ymlconfig[x].to_s.empty? }
+    %W(csv_export_url type subject).each { |x| raise "no '#{x}' found in #{ymlfile}" if ymlconfig[x].to_s.empty? }
 
     Moodle.new do |moodle|
       moodle.login($CONFIG['user'], $CONFIG['pass'])

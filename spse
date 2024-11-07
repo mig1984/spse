@@ -165,6 +165,7 @@ class SPSE
         # there's no teorie _and_ cviceni, only teorie or cviceni
         create_url = vice.call(spans[0])
       else
+        # TODO: warn?
         cviceni_create_url = nil
         teorie_create_url  = nil
         create_url = nil
