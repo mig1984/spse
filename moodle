@@ -287,10 +287,16 @@ case ARGV[0]
       moodle.login($CONFIG['user'], $CONFIG['pass'])
 
       if ymlconfig['csv_export_url'].is_a?(Array)
-        exported_rows = []
-        ymlconfig['csv_export_url'].each do |x|
-          exported_rows += moodle.export(x)
-        end
+
+        exported_all = ymlconfig['csv_export_url'].map { |x| moodle.export(x) }
+
+        # first rows are columns; all must be the same
+        first_rows = exported_all.map(&:first)
+        raise "first rows of exported data do not match; #{first_rows.inspect}" unless first_rows.uniq.one?
+
+        # combine all rows, but keep the first with column names
+        exported_rows = exported_all.flat_map.with_index { |x, i| i.zero? ? x : x[1..] }
+
       else
         exported_rows = moodle.export(ymlconfig['csv_export_url'])
       end
