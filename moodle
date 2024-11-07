@@ -288,8 +288,8 @@ case ARGV[0]
 
       if ymlconfig['csv_export_url'].is_a?(Array)
         exported_rows = []
-        ymlconfig['csv_export_url'].each do
-          exported_rows += moodle.export(ymlconfig['csv_export_url'])
+        ymlconfig['csv_export_url'].each do |x|
+          exported_rows += moodle.export(x)
         end
       else
         exported_rows = moodle.export(ymlconfig['csv_export_url'])
