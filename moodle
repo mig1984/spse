@@ -207,7 +207,7 @@ class Moodle
       if row[col_num].is_number?                # student got some points
          h[:scores] << Score.new(max, row[col_num].to_i)
       else
-         next if defs['optional']==true         # task is optional and no points => skip
+         next if defs['optional']==true || (group_defs && group_defs['optional']==true)  # task/group is optional and no points => skip
          h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)   # default_points may override group default_points
 
          #$stderr.puts row.to_s

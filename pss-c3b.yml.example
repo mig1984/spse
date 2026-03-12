@@ -64,6 +64,18 @@ csv_export_url:
       max: 5
 
 
+# Skupina úkolů může být volitelná. Známka se vyplní pouze tehdy, když student splní alespoň jeden podúkol.
+# Pokud student nesplní žádný podúkol, celá skupina se přeskočí.
+
+"Volitelné routování":
+  weight: small
+  optional: true
+  tasks:
+    "Routing I.":
+      max: 100
+    "Routing II.":
+      max: 100
+
 
 Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále N (implicitni chovani)
 
