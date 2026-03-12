@@ -108,3 +108,5 @@ Export/import je možno provádět několikanásobně. V takovém případě se 
 
 Jelikož nelze párovat známky v moodle s portálem skrze scoreId (v moodle žádné scoreId není), tak jediná možnost je párovat je na základě stejného popisu.
 Proto se při importu musí použít argument "fuzzy". Kdyby se fuzzy neuvedl, vytvořila by se pokaždé nová známka na portále, protože v CSV souboru chybí scoreId.
+
+Pokud je v moodle kurzu někdo, kdo na portále nemá místo pro zadání známky (typicky nepatřící lidé do kurzu), tak se tento žák automaticky přeskočí s varováním na stderr.
