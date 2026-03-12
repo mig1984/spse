@@ -94,6 +94,7 @@ class Moodle
           next if score_h[:scores].empty?      # skip optional
 
           portal_student = student_lookup(student_id)
+          next unless portal_student
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -119,6 +120,7 @@ class Moodle
           next if score_h[:scores].empty?      # skip optional
 
           portal_student = student_lookup(student_id)
+          next unless portal_student
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -260,9 +262,10 @@ class Moodle
     end
     
     unless @index.has_key?(student_id)
-      raise "student_id '#{student_id}' not found in moodle.idx"
+      $stderr.puts "WARNING: student_id '#{student_id}' not found in moodle.idx (probably leaved), skipping"
+      return nil
     end
-    
+
     PortalStudent.new(student_id, *@index[student_id])
   end
 
