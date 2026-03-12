@@ -1,6 +1,6 @@
 # spse
 
-Skrip "spse" umí exportovat a importovat známky z portálu do/z CSV souboru. Import znamená, že porovná aktuální stav na portále s tím co je v CSV a provede pouze změny.
+Skript "spse" umí exportovat a importovat známky z portálu do/z CSV souboru. Import znamená, že porovná aktuální stav na portále s tím co je v CSV a provede pouze změny.
 
 ## instalace
 
