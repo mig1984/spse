@@ -37,6 +37,20 @@ csv_export_url:
     max: 100
     optional: true
 
+# Úkol může mít deadline. Do deadlinu se chová jako optional (neodevzdané se přeskočí).
+# Po deadlinu se chová normálně (neodevzdané dostanou N nebo default_points).
+# Deadline funguje i na skupiny úkolů. Lze zadat i čas (bez času platí od půlnoci daného dne).
+
+"Routing I.5":
+    weight: small
+    max: 100
+    deadline: "2026-03-31"
+
+"Routing I.6":
+    weight: small
+    max: 100
+    deadline: "2026-03-31T18:00:00"
+
 # Nedefinovaná známka: pokud úkol nemá žádnou známku na moodle, normálně by z něj vzniklo 'N'. Je však možné
 # uvést "N: 5", čímž z takových úkolů bude na portále 5.
 
