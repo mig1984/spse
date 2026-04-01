@@ -130,7 +130,11 @@ class SPSE
     page = rtr { @m.get("https://www.spsejecna.cz/trida/#{trida}") }
 
     $stderr.puts "loading #{predmet} page..."
-    link = page.link_with(text: /Známky #{predmet}/i) or raise "no link for 'Známky #{predmet}'"
+    link = page.link_with(text: /Známky #{predmet}/i)
+    unless link
+      $stderr.puts "WARNING: no link for 'Známky #{predmet}' in #{trida}, skipping"
+      return
+    end
     page = rtr { @m.click link }
 
     $stderr.puts

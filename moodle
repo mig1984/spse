@@ -4,7 +4,10 @@ require 'logger'
 require 'mechanize'
 require 'csv'
 require 'yaml'
+require 'date'
+require 'time'
 
+ENV['TZ'] = 'Europe/Prague'
 Encoding.default_internal = "utf-8"
 
 class String
@@ -94,6 +97,7 @@ class Moodle
           next if score_h[:scores].empty?      # skip optional
 
           portal_student = student_lookup(student_id)
+          next unless portal_student
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -119,6 +123,7 @@ class Moodle
           next if score_h[:scores].empty?      # skip optional
 
           portal_student = student_lookup(student_id)
+          next unless portal_student
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -205,7 +210,9 @@ class Moodle
       if row[col_num].is_number?                # student got some points
          h[:scores] << Score.new(max, row[col_num].to_i)
       else
-         next if defs['optional']==true         # task is optional and no points => skip
+         deadline = defs['deadline'] || (group_defs && group_defs['deadline'])
+         is_optional = defs['optional']==true || (group_defs && group_defs['optional']==true) || (deadline && Time.now <= Time.parse(deadline.to_s))
+         next if is_optional  # task/group is optional (or before deadline) and no points => skip
          h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)   # default_points may override group default_points
 
          #$stderr.puts row.to_s
@@ -260,9 +267,10 @@ class Moodle
     end
     
     unless @index.has_key?(student_id)
-      raise "student_id '#{student_id}' not found in moodle.idx"
+      $stderr.puts "WARNING: student_id '#{student_id}' not found in moodle.idx (probably leaved), skipping"
+      return nil
     end
-    
+
     PortalStudent.new(student_id, *@index[student_id])
   end
 
