@@ -16,7 +16,7 @@ class String
   end
 end
 
-Score = Struct.new(:max, :points)
+Score = Struct.new(:max, :points, :goal)
 
 PortalStudent = Struct.new(:id, :trida, :name)
 
@@ -109,6 +109,11 @@ class Moodle
             calc_final_score( score_h[:scores], group_defs['n']||group_defs['N'] ),  # 3
             group_defs['weight'] || 'big'      # big
           ]
+          
+          $stderr.puts portal_student.name
+          $stderr.puts score_h[:scores].inspect
+          $stderr.puts calc_final_score( score_h[:scores], group_defs['n']||group_defs['N'] )
+          
         end
 
       else
@@ -207,18 +212,20 @@ class Moodle
       h[:scores] ||= []
 
       max = defs['max'] || 100
-      if row[col_num].is_number?                # student got some points
-         h[:scores] << Score.new(max, row[col_num].to_i)
+      is_goal = (defs['goal'] == true)
+
+      if row[col_num].is_number?
+          # student odevzdal
+          points = row[col_num].to_i
+          h[:scores] << Score.new(max, points, is_goal)
       else
-         deadline = defs['deadline'] || (group_defs && group_defs['deadline'])
-         is_optional = defs['optional']==true || (group_defs && group_defs['optional']==true) || (deadline && Time.now <= Time.parse(deadline.to_s))
-         next if is_optional  # task/group is optional (or before deadline) and no points => skip
-         h[:scores] << sc = Score.new(max, defs['default']||defs['default_points']||default_points)   # default_points may override group default_points
-
-         #$stderr.puts row.to_s
-         #$stderr.puts sc.to_s
-
+          deadline = defs['deadline'] || (group_defs && group_defs['deadline'])
+          is_optional = defs['optional']==true || (group_defs && group_defs['optional']==true) || (deadline && Time.now <= Time.parse(deadline.to_s))
+          next if is_optional  # task/group is optional (or before deadline) and no points => skip
+          points = defs['default']||defs['default_points']||default_points # default_points may override group default_points
+          h[:scores] << sc = Score.new(max, points, is_goal)
       end
+
     end
 
     nil
@@ -226,37 +233,35 @@ class Moodle
 
   # n is 1-5-N => instead of N it will set this
   def calc_final_score(scores, n)
-    has_n = scores.find { |score| score.points == 'N' } 
+
+    # find a goal task(s) which have some scores
+    goal_scores = scores.select { |s| s.goal && s.points.to_i>0 }
+
+    # if there are goal tasks, calculate only scores of them - otherwise count all scores
+    relevant_scores = goal_scores.any? ? goal_scores : scores
 
     # if there is a task with 'N' (in the task-group or the task itself has no points)
     # => it results in 'N' for the whole group (or the task) unless overridden
     # otherwise if there is no 'N' in the task-group or the task itself has some point
     # => it results in an average
+    has_n = relevant_scores.find { |score| score.points == 'N' }
 
     if has_n
-
       result = n ? n : 'N'
-
     else
+      sum_of_max = relevant_scores.sum(&:max)
+      sum_of_points = relevant_scores.sum(&:points)
+      
+      return 'N' if sum_of_max == 0
+      
+      pct = (sum_of_points.to_f / sum_of_max.to_f) * 100
 
-      sum_of_max = scores.sum(&:max)
-      sum_of_points = scores.sum(&:points)
-      pct = (sum_of_points.to_f/sum_of_max.to_f)*100
-
-      result = if pct>=90
-        1
-      elsif pct>=70
-        2
-      elsif pct>=50
-        3
-      elsif pct>=40
-        4
-      else
-        5
-      end
-
+      result = if pct >= 90 then 1
+               elsif pct >= 70 then 2
+               elsif pct >= 50 then 3
+               elsif pct >= 40 then 4
+               else 5 end
     end
-
     result
   end
 

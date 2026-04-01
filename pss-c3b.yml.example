@@ -65,6 +65,8 @@ csv_export_url:
 # Neodevzdaný úkol dostává default_points. Implicitně je nastaveno "default_points: N", takže se to chová jak je popsáno výše.
 # Můžu však změnit "default_points: 0", a tudíž se neodevzdané úkoly budou počítat za 0 bodů.
 # Default_points lze specifikovat jak pro celou skupinu tak pro konkrétní podúkol.
+# Někdy úkoly závisejí jeden na druhém. Pokud poslední funguje, znamená to, že musely fungovat všechny předchozí - nemá smysl je započítávat. Proto slouží volba "goal: true", kdy se započítá známka pouze z tohoto goal úkolu (či více goal úkolů).
+
 
 "Adresáře a soubory":
   weight: big
@@ -76,7 +78,7 @@ csv_export_url:
       max: 100
     "Pohyb mezi adresáři a vytváření souboru":
       max: 5
-
+      goal: true
 
 # Skupina úkolů může být volitelná. Známka se vyplní pouze tehdy, když student splní alespoň jeden podúkol.
 # Pokud student nesplní žádný podúkol, celá skupina se přeskočí.
@@ -97,9 +99,9 @@ Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále N (implici
   weight: small
   tasks:
     "úkol 2.1. Připojte se do svého VPS přes SSH":
-     max: 2
+       max: 2
     "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
-     max: 3
+       max: 3
 
 
 Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále 5
@@ -109,9 +111,9 @@ Příklad: kvůli jedinému neodevzdanému podúkolu bude na portále 5
   N: 5
   tasks:
     "úkol 2.1. Připojte se do svého VPS přes SSH":
-     max: 2
+       max: 2
     "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
-     max: 3
+       max: 3
 
 
 Příklad: neodevzdané podúkoly se počítají za 0 bodů, na portále bude známka podle průměru
@@ -121,9 +123,9 @@ Příklad: neodevzdané podúkoly se počítají za 0 bodů, na portále bude zn
   default_points: 0
   tasks:
     "úkol 2.1. Připojte se do svého VPS přes SSH":
-     max: 2
+       max: 2
     "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
-     max: 3
+       max: 3
 
 
 Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (a známka na portále bude tudíž taky N); neodevzdaný úkol 2.2 se však počítá za 0 bodů
@@ -132,10 +134,10 @@ Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (a známka
   weight: small
   tasks:
     "úkol 2.1. Připojte se do svého VPS přes SSH":
-     max: 2
+       max: 2
     "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
-     default_points: 0
-     max: 3
+       default_points: 0
+       max: 3
 
 
 Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (ale známka na portále bude 5); neodevzdaný úkol 2.2 se počítá za 0 bodů
@@ -145,7 +147,19 @@ Příklad: když nebude odevzdán úkol 2.1, bude se počítat jako N (ale znám
   N: 5
   tasks:
     "úkol 2.1. Připojte se do svého VPS přes SSH":
-     max: 2
+       max: 2
     "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
-     default_points: 0
-     max: 3 
+       default_points: 0
+       max: 3
+
+Příklad: když byl odevzdán úkol "goal" a student z něj získal nějaké body, pak ostatní úkoly ve skupině úkolů nejsou relevantní a body se započítají pouze z toho goal úkolu.
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  weight: small
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+       max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+       max: 3
+       goal: true
+
