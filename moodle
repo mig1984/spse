@@ -16,7 +16,7 @@ class String
   end
 end
 
-Score = Struct.new(:max, :points, :goal, :important)
+Score = Struct.new(:max, :points, :goal)
 
 PortalStudent = Struct.new(:id, :trida, :name)
 
@@ -213,7 +213,6 @@ class Moodle
 
       max = (defs['max'] || 100)
       is_goal      = (defs['goal']==true)
-      is_important = (defs['important']==true)
 
       if row[col_num].is_number?
           # student odevzdal
@@ -226,7 +225,7 @@ class Moodle
           points = defs['default']||defs['default_points']||default_points # default_points may override group default_points
       end
       
-      h[:scores] << Score.new(max, points, is_goal, is_important)
+      h[:scores] << Score.new(max, points, is_goal)
     end
 
     nil
@@ -235,19 +234,11 @@ class Moodle
   # n is 1-5-N => instead of N it will set this
   def calc_final_score(scores, n)
 
-    # select 'imporant' task(s) - can have zero score(s), they will override other scores
-    important_scores = scores.select(&:important)
-
-    # select 'goal' task(s) - like important but must have non-zero score(s)
+    # select 'goal' task(s)
     goal_scores = scores.select { |s| s.goal && s.points.to_i>0 }
 
-    relevant_scores = if important_scores.any?
-      important_scores
-    elsif goal_scores.any?
-      goal_scores
-    else
-      scores   # i.e. all
-    end
+    # use scores from only goal tasks or all tasks?
+    relevant_scores = goal_scores.any? ? goal_scores : scores
 
     # if there is a task with 'N' (in the task-group or the task itself has no points)
     # => it results in 'N' for the whole group (or the task) unless overridden

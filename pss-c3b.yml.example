@@ -80,13 +80,11 @@ csv_export_url:
 # Default_points lze specifikovat jak pro celou skupinu tak pro konkrétní podúkol.
 
 
-# Podúkoly někdy závisejí jeden na druhém. Pokud je splněn poslední, znamená to, že musely fungovat i všechny předchozí.
-# Nemá tudíž smysl je započítávat (což by znamenalo v moodle všechno odklikat). Stačí použít ten poslední.
-# Existuje proto "goal: true" nebo "important: true". Funkce je podobná; pakliže takový úkol byl splněn, skóre se započítá 
-# pouze z goal/important podúkolu a ostatní se ignorují. Rozdíl je v tom, jak se pracuje s nulovým skóre. 
-# "important" funguje jako override a pokud má skóre nula, tak celkové skóre bude nula, i kdyby žák udělal ostatní úkoly.
-# "goal" funguje podobně jako important, ale dělá override ostatních skóre pouze tehdy, pokud sám nemá skóre nula. Čili
-# ponechá žákovi aspoň průměr ze všech podúkolů.
+# Podúkoly někdy závisejí jeden na druhém. Je-li splněn poslední úkol, znamená to, že musely fungovat i všechny předchozí.
+# Nemá tudíž smysl je započítávat (v moodle všechno odklikat). Stačí použít ten poslední.
+# Proto existuje volba "goal: true". Pokud žák takový úkol splnil (má nenulové skóre), celkové skóre se započítá
+# pouze z goal úkolu(ů) a zbytek se ignoruje. Pokud však goal úkol sám má skóre nula, použije se průměrné skóre ze všech 
+# jako normálně (jinak by takový goal úkol vynuloval skóre, přestože žák ty ostatní úkoly udělal).
 
 "Adresáře a soubory":
   weight: big
