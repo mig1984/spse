@@ -212,20 +212,20 @@ class Moodle
       h[:scores] ||= []
 
       max = defs['max'] || 100
-      is_goal = (defs['goal'] == true)
+      is_goal = defs['goal']==true
 
       if row[col_num].is_number?
           # student odevzdal
           points = row[col_num].to_i
-          h[:scores] << Score.new(max, points, is_goal)
       else
           deadline = defs['deadline'] || (group_defs && group_defs['deadline'])
           is_optional = defs['optional']==true || (group_defs && group_defs['optional']==true) || (deadline && Time.now <= Time.parse(deadline.to_s))
           next if is_optional  # task/group is optional (or before deadline) and no points => skip
-          points = defs['default']||defs['default_points']||default_points # default_points may override group default_points
-          h[:scores] << sc = Score.new(max, points, is_goal)
-      end
 
+          points = defs['default']||defs['default_points']||default_points # default_points may override group default_points
+      end
+      
+      h[:scores] << Score.new(max, points, is_goal)
     end
 
     nil
@@ -234,7 +234,8 @@ class Moodle
   # n is 1-5-N => instead of N it will set this
   def calc_final_score(scores, n)
 
-    # find a goal task(s) which have some scores
+    # find a 'goal' task(s) with non-zero score(s)
+    # (otherwise a goal task with zero points would override all other, possibly non-zero scores)
     goal_scores = scores.select { |s| s.goal && s.points.to_i>0 }
 
     # if there are goal tasks, calculate only scores of them - otherwise count all scores
