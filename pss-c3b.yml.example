@@ -59,14 +59,8 @@ csv_export_url:
     max: 100
     N: 5
 
-# Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory".
-# Pokud jediný podúkol bude N, pak celková známka na portále bude N.
-# Pokud by měla být celková známka na portále N, lze to ještě změnit pomocí "N: 5" a budou tam pětky.
-# Neodevzdaný úkol dostává default_points. Implicitně je nastaveno "default_points: N", takže se to chová jak je popsáno výše.
-# Můžu však změnit "default_points: 0", a tudíž se neodevzdané úkoly budou počítat za 0 bodů.
-# Default_points lze specifikovat jak pro celou skupinu tak pro konkrétní podúkol.
-# Někdy úkoly závisejí jeden na druhém. Pokud poslední funguje, znamená to, že musely fungovat všechny předchozí - nemá smysl je započítávat. Proto slouží volba "goal: true", kdy se započítá známka pouze z tohoto goal úkolu (či více goal úkolů).
 
+# Dále existují skupiny úkolů. Z nich na portále vznikne jedna známka (průměrná), která bude mít v popisu "Adresáře a soubory":
 
 "Adresáře a soubory":
   weight: big
@@ -78,6 +72,31 @@ csv_export_url:
       max: 100
     "Pohyb mezi adresáři a vytváření souboru":
       max: 5
+
+# Pokud jediný podúkol bude N, pak celková známka na portále bude N.
+# Pokud by měla být celková známka na portále N, lze to ještě změnit pomocí "N: 5" a místo N vzniknou pětky.
+# Neodevzdaný úkol dostává default_points. Implicitně je nastaveno "default_points: N", takže se to chová jak je popsáno výše.
+# Můžu však změnit "default_points: 0", a tudíž se neodevzdané úkoly budou počítat za 0 bodů.
+# Default_points lze specifikovat jak pro celou skupinu tak pro konkrétní podúkol.
+
+
+# Podúkoly někdy závisejí jeden na druhém. Pokud je splněn poslední, znamená to, že musely fungovat i všechny předchozí.
+# Nemá tudíž smysl je započítávat (což by znamenalo v moodle všechno odklikat). Stačí použít ten poslední.
+# Existuje proto "goal: true" nebo "important: true". Funkce je podobná; pakliže takový úkol byl splněn, skóre se započítá 
+# pouze z goal/important podúkolu a ostatní se ignorují. Rozdíl je v tom, jak se pracuje s nulovým skóre. 
+# "important" funguje jako override a pokud má skóre nula, tak celkové skóre bude nula, i kdyby žák udělal ostatní úkoly.
+# "goal" funguje podobně jako important, ale dělá override ostatních skóre pouze tehdy, pokud sám nemá skóre nula. Čili
+# ponechá žákovi aspoň průměr ze všech podúkolů.
+
+"Adresáře a soubory":
+  weight: big
+  tasks:
+    "Vyrob adresar":
+      max: 1
+    "Vyrob v adresari soubor":
+      max: 1
+    "Zazipuj adresar se souborem":
+      max: 2
       goal: true
 
 # Skupina úkolů může být volitelná. Známka se vyplní pouze tehdy, když student splní alespoň jeden podúkol.
