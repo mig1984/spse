@@ -180,3 +180,16 @@ Příklad: když byl odevzdán úkol "goal" a student z něj získal nějaké bo
        max: 3
        goal: true
 
+
+Příklad: disabled - aby nebylo nutno zakomentovávat celé kusy v yaml
+
+"2. Práce s Linuxem v režimu příkazového řádku, Vzdálená správa":
+  disabled: true
+  weight: small
+  N: 5
+  tasks:
+    "úkol 2.1. Připojte se do svého VPS přes SSH":
+       max: 2
+    "úkol 2.2. Upravte webovou stránku a proveďte její zálohu ":
+       default_points: 0
+       max: 3

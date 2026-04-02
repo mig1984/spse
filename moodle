@@ -85,6 +85,8 @@ class Moodle
 
     tasks_or_groups.each do |name, defs|
 
+      next if defs['disabled'] # disabled task or disabled group
+
       if defs.has_key?('tasks')
 
         # it is a group of tasks
@@ -92,7 +94,13 @@ class Moodle
         group_name = name
         group_defs = defs
         scores = {}
-        group_defs['tasks'].each { |task_name, task_defs| add_scores!(exported_rows, task_name, task_defs, scores, group_defs) }
+
+        group_defs['tasks'].each do |task_name, task_defs|
+          unless task_defs['disabled']
+            add_scores!(exported_rows, task_name, task_defs, scores, group_defs)
+          end
+        end
+
         scores.each do |student_id, score_h|
           next if score_h[:scores].empty?      # skip optional
 
