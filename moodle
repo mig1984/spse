@@ -106,6 +106,9 @@ class Moodle
 
           portal_student = student_lookup(student_id)
           next unless portal_student
+
+          final_score = calc_final_score( score_h[:scores], group_defs['n']||group_defs['N'] )
+
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -118,10 +121,7 @@ class Moodle
             group_defs['weight'] || 'big'      # big
           ]
           
-          $stderr.puts portal_student.name
-          $stderr.puts score_h[:scores].inspect
-          $stderr.puts calc_final_score( score_h[:scores], group_defs['n']||group_defs['N'] )
-          
+          $stderr.puts "- #{name} :: #{portal_student.name} :: #{score_h[:scores].inspect} => #{final_score}"
         end
 
       else
@@ -137,6 +137,8 @@ class Moodle
 
           portal_student = student_lookup(student_id)
           next unless portal_student
+
+          final_score = calc_final_score( score_h[:scores], task_defs['n']||task_defs['N'] )
           out << [
             portal_student.trida,              # C3A
             ymlconfig['subject'],              # PSS
@@ -145,9 +147,11 @@ class Moodle
             nil,                               # score id
             ymlconfig['type'],                 # cviceni
             task_name,                         # Ukol: bla bla
-            calc_final_score( score_h[:scores], task_defs['n']||task_defs['N'] ),    # 3
+            final_score,                       # 3
             task_defs['weight'] || 'big'       # big
           ]
+    
+          $stderr.puts "- #{name} :: #{portal_student.name} :: #{score_h[:scores].inspect} => #{final_score}"
         end
 
       end
